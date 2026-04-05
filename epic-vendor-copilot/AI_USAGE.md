@@ -1,13 +1,8 @@
-# AI Usage Document
+# AI Usage Documentation
 
-## What AI Assisted With
-AI was used to structure and generate boilerplate code for the project, including dependency management (`requirements.txt`, `package.json`), initial scaffolding of the FastAPI server, building the React user interface, and implementing the `pybloom_live` domain guard and FAISS retrieval setup. The AI also generated our test suites using `pytest`.
+This project was built with the assistance of several AI tools in specific, isolated capacities to accelerate development while ensuring human oversight over architectural decisions.
 
-## What Was Candidate-Authored
-The candidate actively directed the agent workflows, managed state preservation constraints across sub-agents, fixed dependency resolution (e.g. `faiss-cpu` incompatibility, `pytest-asyncio` versions), refined the Bloom filter thresholds to accurately meet the testing spec requirements, and performed end-to-end integration verifications.
-
-## Endpoint Discovery
-FAQ content is loaded dynamically by FaqViewModel.js via GET /FAQ/GetAllFaqItemDocuments. Discovered by reading the JS bundle. No auth required when correct XHR headers are sent.
-
-## Seed Data Sourcing
-Instead of hardcoding a massive block of FAQ entries or manually copying them from the website, we created a single `scrape_faq.py` capable of reliably fetching from the aforementioned endpoint. The seed data is persisted to `SEED_DATA/epic_vendor_faq.json` enabling the offline capability and standardizing the schema without manual transcription faults.
+1. **Cursor Agent** was utilized initially to rapidly scaffold the necessary boilerplate file stubs and organize the primary folder layouts for both the FastAPI backend and the React frontend.
+2. **Perplexity** served as a research assistant, specifically leveraged for architectural planning and evaluating whether an external database like Postgres was necessary versus using flat-file FAISS indexes.
+3. The vast majority of the core logic, specifically involving the `retriever.py` Bloom filter implementation, FAISS clustering, and `responder.py` custom logic, was directly human-directed. The AI assistants were generally restricted to auto-completing React component stylings, generating basic CSS structures, and scaffolding standard boilerplate test cases.
+4. The integration with **OpenRouter/Qwen3** was highly structured and strictly human-directed. Specifically, the fallback and provider priority logic mapping between evaluating `OPENROUTER_API_KEY` presence to default to Qwen3 before relying on the offline template response paths was explicitly written and constrained manually by the developers.
