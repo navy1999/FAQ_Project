@@ -1,0 +1,273 @@
+"""
+main.py
+-------
+FastAPI application for the Epic Vendor Services FAQ copilot.
+
+Endpoints:
+  POST /chat         — Main chat endpoint
+  GET  /session/{id}/memory — Session memory snapshot
+  DELETE /session/{id}      — Delete session
+  GET  /health              — Health check
+
+Single file. Uses lifespan events for startup/shutdown.
+"""
+
+import asyncio
+import time
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, field_validator
+
+from backend.domain_rules import check_domain_rules
+from backend.memory import ConversationMemory, SessionStore, Turn
+from backend.responder import MODE, synthesize
+
+# ── Lazy-loaded retriever ────────────────────────────────────────────────────
+
+_retriever_module = None
+_entries_count = 0
+
+
+def _get_retriever():
+    global _retriever_module, _entries_count
+    if _retriever_module is None:
+        from backend import retriever as ret
+        _retriever_module = ret
+        _entries_count = len(ret._ENTRIES)
+    return _retriever_module
+
+
+# ── Session store singleton ──────────────────────────────────────────────────
+
+session_store = SessionStore()
+
+
+# ── Background task: periodic stale session eviction ─────────────────────────
+
+async def _evict_stale_loop():
+    """Evict stale sessions every 300 seconds."""
+    while True:
+        await asyncio.sleep(300)
+        evicted = session_store.evict_stale()
+        if evicted:
+            print(f"[SessionStore] Evicted {evicted} stale sessions")
+
+
+# ── Lifespan ─────────────────────────────────────────────────────────────────
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup: warm retriever and start background eviction task."""
+    print("[Startup] Warming retriever (SBERT model + FAISS index)...")
+    _get_retriever()
+    print(f"[Startup] Retriever ready. {_entries_count} FAQ entries loaded.")
+    print(f"[Startup] Response mode: {MODE}")
+
+    # Start background eviction task
+    evict_task = asyncio.create_task(_evict_stale_loop())
+
+    yield
+
+    # Shutdown
+    evict_task.cancel()
+    try:
+        await evict_task
+    except asyncio.CancelledError:
+        pass
+
+
+# ── FastAPI app ──────────────────────────────────────────────────────────────
+
+app = FastAPI(
+    title="Epic Vendor Copilot",
+    description="FAQ support copilot for Epic Vendor Services",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ── Request/Response models ──────────────────────────────────────────────────
+
+class ChatRequest(BaseModel):
+    session_id: str
+    message: str
+
+    @field_validator("message")
+    @classmethod
+    def validate_message(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Message must be non-empty")
+        if len(v) > 500:
+            raise ValueError("Message must be 500 characters or fewer")
+        return v
+
+
+class SourceResponse(BaseModel):
+    id: str | None = None
+    section: str | None = None
+    question: str | None = None
+    url: str | None = None
+    confidence: float | None = None
+
+
+class ChatResponse(BaseModel):
+    answer: str
+    source: SourceResponse
+    memory_used: bool
+    memory_turn_refs: list[int]
+    domain_route: str | None
+    clarification_needed: bool
+    mode: str  # "template" | "llm"
+
+
+# ── Endpoints ────────────────────────────────────────────────────────────────
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat(req: ChatRequest):
+    """
+    Main chat endpoint. Processing order:
+    1. check_domain_rules()
+    2. If route matched → return canned response
+    3. retriever.retrieve()
+    4. Check memory for previously seen FAQ IDs
+    5. responder.synthesize()
+    6. Record turns in session memory
+    7. Return full response
+    """
+    memory = session_store.get_or_create(req.session_id)
+    retriever = _get_retriever()
+
+    # Track turn index
+    current_turn_index = len(memory.context_window())
+
+    # Step 1: Domain rules check
+    route_result = check_domain_rules(req.message)
+
+    if route_result:
+        # Step 2: Routed response
+        user_turn = Turn(
+            role="user",
+            content=req.message,
+            retrieved_ids=[],
+            turn_index=current_turn_index,
+            timestamp=time.time(),
+        )
+        memory.add(user_turn)
+
+        assistant_turn = Turn(
+            role="assistant",
+            content=route_result["response"],
+            retrieved_ids=[],
+            turn_index=current_turn_index + 1,
+            timestamp=time.time(),
+        )
+        memory.add(assistant_turn)
+
+        return ChatResponse(
+            answer=route_result["response"],
+            source=SourceResponse(),
+            memory_used=False,
+            memory_turn_refs=[],
+            domain_route=route_result["route"],
+            clarification_needed=False,
+            mode=MODE,
+        )
+
+    # Step 3: Retrieval
+    retrieval_result = retriever.retrieve(req.message)
+    retrieved_ids = [r["id"] for r in retrieval_result.get("results", [])]
+
+    # Step 4: Memory overlap check
+    previously_used = memory.used_faq_ids()
+    overlapping_ids = set(retrieved_ids) & previously_used
+    memory_used = len(overlapping_ids) > 0
+
+    memory_turn_refs = []
+    if memory_used:
+        for turn in memory.context_window():
+            if set(turn.retrieved_ids) & overlapping_ids:
+                memory_turn_refs.append(turn.turn_index)
+
+    # Step 5: Synthesize response
+    synth = synthesize(
+        query=req.message,
+        retrieval_result=retrieval_result,
+        memory=memory,
+        domain_route=None,
+    )
+
+    # Step 6: Record turns
+    user_turn = Turn(
+        role="user",
+        content=req.message,
+        retrieved_ids=retrieved_ids,
+        turn_index=current_turn_index,
+        timestamp=time.time(),
+    )
+    memory.add(user_turn)
+
+    assistant_turn = Turn(
+        role="assistant",
+        content=synth["answer"],
+        retrieved_ids=retrieved_ids,
+        turn_index=current_turn_index + 1,
+        timestamp=time.time(),
+    )
+    memory.add(assistant_turn)
+
+    # Step 7: Build response
+    source = SourceResponse()
+    if retrieval_result.get("results"):
+        top = retrieval_result["results"][0]
+        source = SourceResponse(
+            id=top["id"],
+            section=top["section"],
+            question=top["question"],
+            url=top["source_url"],
+            confidence=top["score"],
+        )
+
+    return ChatResponse(
+        answer=synth["answer"],
+        source=source,
+        memory_used=memory_used,
+        memory_turn_refs=memory_turn_refs,
+        domain_route=None,
+        clarification_needed=synth["clarification_needed"],
+        mode=synth["mode"],
+    )
+
+
+@app.get("/session/{session_id}/memory")
+async def get_memory(session_id: str):
+    """Return the session's memory snapshot."""
+    memory = session_store.get_or_create(session_id)
+    return memory.to_dict()
+
+
+@app.delete("/session/{session_id}", status_code=204)
+async def delete_session(session_id: str):
+    """Remove a session from the store."""
+    session_store.remove(session_id)
+    return None
+
+
+@app.get("/health")
+async def health():
+    """Health check endpoint."""
+    return {
+        "status": "ok",
+        "entries_loaded": _entries_count,
+        "mode": MODE,
+    }

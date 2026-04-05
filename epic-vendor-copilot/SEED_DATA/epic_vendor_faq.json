@@ -1,0 +1,510 @@
+{
+  "meta": {
+    "source": "https://vendorservices.epic.com/FAQ/Index",
+    "api_endpoint": "https://vendorservices.epic.com/FAQ/GetAllFaqItemDocuments",
+    "scraped_at": "2026-04-04T22:27:27.965899+00:00",
+    "total_sections": 11,
+    "total_entries": 32,
+    "note": "Data fetched from the public JSON API endpoint discovered in FaqViewModel.js (GET /FAQ/GetAllFaqItemDocuments). No authentication required."
+  },
+  "sections": [
+    {
+      "section_id": 1082,
+      "section": "General",
+      "order": 79,
+      "entries": [
+        {
+          "id": "vs-1072",
+          "question": "What is Vendor Services?",
+          "answer_html": "<p><a href=\"https://vendorservices.epic.com\">Vendor Services</a> is a support program offered by Epic to developers who are looking to integrate their product with Epic software.</p>\n<p>Membership to Vendor Services provides access to the following:\n<ul>\n<li>Interface technologies, specifications, and documentation to enable close workflow and data connections with Epic software:\n<ul>\n<li>Single sign-on options for embedding, launching, and signing into web-based applications using SMART on FHIR (OAuth 2.0)</li>\n<li>Standards-based APIs such as Fast Healthcare Interoperability Resources (FHIR) and CDS Hooks</li>\n<li>Standards-based interfaces such as ASC X12 and HL7 v2</li>\n<li>Epic-specific APIs and web services, where standards may not yet be supported</li>\n<li>Kit, which enables apps to connect to health systems' reporting databases to access clinical, operational, and financial data</li>\n<li>Import specifications</li>\n</ul>\n<li>Tutorials and developer forums to learn and stay up to date on best practices for interfacing with Epic</li>\n<li>Sandboxes, client test harnesses, and example data to help developers test</li>\n<li>Expert design consultation and technical assistance to help get your app ready for use by healthcare organizations or patients</li>\n<li>Install assistance and other tools to streamline deployment</li>\n</ul>\n\n<!-- COMMENT OUT THE BELOW SECTION UNTIL WE PUBLISH THE NEW DOCUMENT\n\n<p>You can also view our <a href=\"https://appmarket.epic.com/Resources/vendor-overview\">App Market Overview</a> for a quick look at what our program has to offer.</p>\n\n-->",
+          "answer_text": "Vendor Services is a support program offered by Epic to developers who are looking to integrate their product with Epic software. \nMembership to Vendor Services provides access to the following: \n\nInterface technologies, specifications, and documentation to enable close workflow and data connections with Epic software: \n\nSingle sign-on options for embedding, launching, and signing into web-based applications using SMART on FHIR (OAuth 2.0) \nStandards-based APIs such as Fast Healthcare Interoperability Resources (FHIR) and CDS Hooks \nStandards-based interfaces such as ASC X12 and HL7 v2 \nEpic-specific APIs and web services, where standards may not yet be supported \nKit, which enables apps to connect to health systems' reporting databases to access clinical, operational, and financial data \nImport specifications \nTutorials and developer forums to learn and stay up to date on best practices for interfacing with Epic \nSandboxes, client test harnesses, and example data to help developers test \nExpert design consultation and technical assistance to help get your app ready for use by healthcare organizations or patients \nInstall assistance and other tools to streamline deployment",
+          "keywords": [],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "General",
+          "order": 1
+        },
+        {
+          "id": "vs-1073",
+          "question": "Who uses the Vendor Services website?",
+          "answer_html": "<p>Developers enrolled in Vendor Services use the website to receive access to test harnesses, testing sandboxes, and tutorials. The Vendor Services website also enables Epic's customers who are interested in creating homegrown applications and interfacing those apps with their Epic software.</p>",
+          "answer_text": "Developers enrolled in Vendor Services use the website to receive access to test harnesses, testing sandboxes, and tutorials. The Vendor Services website also enables Epic's customers who are interested in creating homegrown applications and interfacing those apps with their Epic software.",
+          "keywords": [],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "General",
+          "order": 2
+        },
+        {
+          "id": "vs-1085",
+          "question": "What is open.epic?",
+          "answer_html": "<p><a href=\"https://open.epic.com\">open.epic</a> is a free online self-service resource for developers and others who wish to learn how Epic interoperates. You can use the open.epic <a href=\"https://open.epic.com/Home/InteroperabilityGuide\">interoperability guide</a> to get connected to the right interoperability resources for your needs. You can also <a href=\"https://open.epic.com/Home/Explore\">explore documentation</a> on how Epic has implemented standards-based APIs and interfaces (e.g., ASC X12, HL7 FHIR, HL7 v2, NCPDP, and more) and certain publicly available Epic-specific APIs. Additionally, through open.epic, you may test your FHIR-based interfaces in our self-service sandbox and obtain client IDs and health systems' FHIR endpoints.</p>\n<p>If you're interested in direct support from Epic to design, test, deploy, maintain, or support an integration between your products and Epic software, then Vendor Services is the right resource for you! <a href=\"/Developer/Index\">Click here to learn more.</a></p>",
+          "answer_text": "open.epic is a free online self-service resource for developers and others who wish to learn how Epic interoperates. You can use the open.epic interoperability guide to get connected to the right interoperability resources for your needs. You can also explore documentation on how Epic has implemented standards-based APIs and interfaces (e.g., ASC X12, HL7 FHIR, HL7 v2, NCPDP, and more) and certain publicly available Epic-specific APIs. Additionally, through open.epic, you may test your FHIR-based interfaces in our self-service sandbox and obtain client IDs and health systems' FHIR endpoints. \nIf you're interested in direct support from Epic to design, test, deploy, maintain, or support an integration between your products and Epic software, then Vendor Services is the right resource for you! Click here to learn more.",
+          "keywords": [],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "General",
+          "order": 9
+        },
+        {
+          "id": "vs-1086",
+          "question": "What is Epic on FHIR?",
+          "answer_html": "<p><a href=\"https://fhir.epic.com\">Epic on FHIR</a> is the FHIR toolbox section of <a href=\"https://open.epic.com\">open.epic</a>, our free online self-service interoperability resource. Through Epic on FHIR, you can find documentation on how Epic has implemented the HL7 FHIR standard, test your FHIR-based interfaces in our self-service sandbox, and obtain client IDs and health systems' FHIR endpoints.</p>\n<p>If you're interested in receiving direct support from Epic to design, test, deploy, maintain, and support an integration between your products and Epic software, then Vendor Services is the right resource for you! <a href=\"/Developer/Index\">Click here to learn more.</a></p>",
+          "answer_text": "Epic on FHIR is the FHIR toolbox section of open.epic , our free online self-service interoperability resource. Through Epic on FHIR, you can find documentation on how Epic has implemented the HL7 FHIR standard, test your FHIR-based interfaces in our self-service sandbox, and obtain client IDs and health systems' FHIR endpoints. \nIf you're interested in receiving direct support from Epic to design, test, deploy, maintain, and support an integration between your products and Epic software, then Vendor Services is the right resource for you! Click here to learn more.",
+          "keywords": [],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "General",
+          "order": 10
+        }
+      ]
+    },
+    {
+      "section_id": 1083,
+      "section": "Membership",
+      "order": 80,
+      "entries": [
+        {
+          "id": "vs-1075",
+          "question": "How do I enroll in Vendor Services?",
+          "answer_html": "<p>To learn more about Vendor Services and to enroll, go to the <a href=\"/Developer/Index\">registration page</a>. Select the \"I'm Interested\" button at the bottom of the page and complete the registration form to get started.</p>\n<p>Epic's customer organizations are automatically provisioned accounts to the Vendor Services website.</p>",
+          "answer_text": "To learn more about Vendor Services and to enroll, go to the registration page . Select the \"I'm Interested\" button at the bottom of the page and complete the registration form to get started. \nEpic's customer organizations are automatically provisioned accounts to the Vendor Services website.",
+          "keywords": [
+            "enroll",
+            "register",
+            "sign up"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Membership",
+          "order": 1
+        },
+        {
+          "id": "vs-1278",
+          "question": "How long does it take to set up an account after filling out the \"I'm Interested\" form?",
+          "answer_html": "<p>Your account on the Vendor Services website is automatically created after submitting the \"I'm Interested\" form. You should receive an email that will allow you to log in to the site and begin reviewing our Program Details with a provisional account. You'll be able to agree to the Vendor Services terms 48 hours after downloading the Program Details. If we have any questions about your organization or account, we may reach out to you during the enrollment process.</p>\n\n<p>The whole process can be relatively quick, but may take more time if additional information is needed from your organization. If you have any questions about this process, reach out to us using the \"Contact\" form at the bottom of this page in the website footer.</p>",
+          "answer_text": "Your account on the Vendor Services website is automatically created after submitting the \"I'm Interested\" form. You should receive an email that will allow you to log in to the site and begin reviewing our Program Details with a provisional account. You'll be able to agree to the Vendor Services terms 48 hours after downloading the Program Details. If we have any questions about your organization or account, we may reach out to you during the enrollment process. \nThe whole process can be relatively quick, but may take more time if additional information is needed from your organization. If you have any questions about this process, reach out to us using the \"Contact\" form at the bottom of this page in the website footer.",
+          "keywords": [
+            "interested",
+            "account",
+            "register"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Membership",
+          "order": 2
+        },
+        {
+          "id": "vs-1076",
+          "question": "How much does it cost to subscribe to Vendor Services?",
+          "answer_html": "<p>Vendor Services pricing starts at $1,900 per year for vendors. For full pricing information, log in or complete the <a href=\"/Developer/Index\">registration form</a> to get started.</p>",
+          "answer_text": "Vendor Services pricing starts at $1,900 per year for vendors. For full pricing information, log in or complete the registration form to get started.",
+          "keywords": [
+            "pricing",
+            "fees",
+            "cost",
+            "money"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Membership",
+          "order": 3
+        },
+        {
+          "id": "vs-1078",
+          "question": "Does Vendor Services offer a trial period?",
+          "answer_html": "<p>Yes, we offer developers subscribed to Vendor Services a three-month trial period. If you notify us that you would like to cancel your membership within the first three months, then we will refund your annual fee less any used support services or other outstanding amounts.</p>",
+          "answer_text": "Yes, we offer developers subscribed to Vendor Services a three-month trial period. If you notify us that you would like to cancel your membership within the first three months, then we will refund your annual fee less any used support services or other outstanding amounts.",
+          "keywords": [
+            "pricing",
+            "fees",
+            "cost",
+            "money"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Membership",
+          "order": 5
+        }
+      ]
+    },
+    {
+      "section_id": 1085,
+      "section": "Learning & Networking",
+      "order": 81,
+      "entries": [
+        {
+          "id": "vs-1100",
+          "question": "What learning and networking opportunities does a subscription to Vendor Services offer?",
+          "answer_html": "<p>Vendor Services offers a variety of virtual, self-service, and peer education opportunities:</p>\n<ul>\n<li>Learn at your own pace with our online, self-service tutorials and documentation.</li>\n<li>Learn from your peers using the <a href=\"https://userweb.epic.com/AppMarket\">Developer Forum</a>.</li>\n<li>If you need one-on-one assistance, create a <a href=\"https://vendorservices.epic.com/Resources/introtosherlock/\">Sherlock Ticket</a> or contact <a href=\"mailto:vendorservices@epic.com\">vendorservices@epic.com</a> for help.</li>\n</ul>",
+          "answer_text": "Vendor Services offers a variety of virtual, self-service, and peer education opportunities: \n\nLearn at your own pace with our online, self-service tutorials and documentation. \nLearn from your peers using the Developer Forum . \nIf you need one-on-one assistance, create a Sherlock Ticket or contact vendorservices@epic.com for help.",
+          "keywords": [
+            "learning",
+            "networking",
+            "training",
+            "event",
+            "conference",
+            "webinar",
+            "tutorial",
+            "forum"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Learning & Networking",
+          "order": 1
+        }
+      ]
+    },
+    {
+      "section_id": 1084,
+      "section": "Data Exchange Capabilities",
+      "order": 82,
+      "entries": [
+        {
+          "id": "vs-1088",
+          "question": "How does Epic support data exchange with other systems?",
+          "answer_html": "<p>To enable our customers to extend their Epic software and to interoperate with homegrown and third-party applications, hardware, and services, Epic software supports hundreds of standards-based interfaces, APIs, and other interoperability technologies, as well as Epic-specific technologies that extend interoperability beyond current standards.</p>\n\n<p>Our catalog of public and industry-standards-based APIs can be found on <a href=\"https://open.epic.com\">open.epic</a> and are available to app developers at no additional cost. Epic is vendor-neutral, and no special relationship is required to develop or deploy an app. On open.epic, developers can use public documentation, sandbox, self-service tools to register apps, connect to customer systems, and go live – all without needing Epic's involvement.</p>",
+          "answer_text": "To enable our customers to extend their Epic software and to interoperate with homegrown and third-party applications, hardware, and services, Epic software supports hundreds of standards-based interfaces, APIs, and other interoperability technologies, as well as Epic-specific technologies that extend interoperability beyond current standards. \nOur catalog of public and industry-standards-based APIs can be found on open.epic and are available to app developers at no additional cost. Epic is vendor-neutral, and no special relationship is required to develop or deploy an app. On open.epic, developers can use public documentation, sandbox, self-service tools to register apps, connect to customer systems, and go live – all without needing Epic's involvement.",
+          "keywords": [
+            "interoperability",
+            "interface",
+            "API"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Data Exchange Capabilities",
+          "order": 1
+        },
+        {
+          "id": "vs-1098",
+          "question": "Which industry standards does Epic support?",
+          "answer_html": "<p>Epic is a strong supporter of industry standards. We work very closely with the standards community to develop and implement many standards-based methods of data exchange and workflow integration. For example, we are a longtime member and supporter of <a href=\"https://hl7.org\">HL7 International</a>. We regularly participate in HL7 workgroups, attend HL7 events, vote on the adoption of new standards, and participate in HL7-related standards accelerators, such as the <a href=\"https://argonautwiki.hl7.org/Main_Page\">Argonauts Project</a> and the <a href=\"https://www.hl7.org/about/davinci/\">Da Vinci Project</a>.</p>\n<p>Epic supports a wide variety of standards-based interoperability technologies, such as ASC X12, C-CDA, CDA, CDS Hooks, DICOM, Direct, HL7 FHIR, HL7 v2, HL7 v3, IHE Profiles, NCPDP, SMART on FHIR, and others. For more information, contact a Vendor Services TS or visit <a href=\"https://open.epic.com\">open.epic</a>.</p>",
+          "answer_text": "Epic is a strong supporter of industry standards. We work very closely with the standards community to develop and implement many standards-based methods of data exchange and workflow integration. For example, we are a longtime member and supporter of HL7 International . We regularly participate in HL7 workgroups, attend HL7 events, vote on the adoption of new standards, and participate in HL7-related standards accelerators, such as the Argonauts Project and the Da Vinci Project . \nEpic supports a wide variety of standards-based interoperability technologies, such as ASC X12, C-CDA, CDA, CDS Hooks, DICOM, Direct, HL7 FHIR, HL7 v2, HL7 v3, IHE Profiles, NCPDP, SMART on FHIR, and others. For more information, contact a Vendor Services TS or visit open.epic .",
+          "keywords": [
+            "interoperability"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Data Exchange Capabilities",
+          "order": 2
+        },
+        {
+          "id": "vs-1089",
+          "question": "What APIs does Epic offer?",
+          "answer_html": "<p>Epic supports hundreds of standards-based and Epic-defined APIs across the spectrum of clinical, specialty, registration, scheduling, financial, patient experience and mobile applications that Epic offers. Our API library includes substantial support for industry standards, such as FHIR, SMART on FHIR, and CDS Hooks, as well as APIs specific to Epic's software. We support both read and write operations. You can access our <a href=\"/Sandbox/Index\">Specifications</a> page and <a href=\"/Resources/Index\">Self-Service Private API Catalog</a> to see the APIs available to you.</p>",
+          "answer_text": "Epic supports hundreds of standards-based and Epic-defined APIs across the spectrum of clinical, specialty, registration, scheduling, financial, patient experience and mobile applications that Epic offers. Our API library includes substantial support for industry standards, such as FHIR, SMART on FHIR, and CDS Hooks, as well as APIs specific to Epic's software. We support both read and write operations. You can access our Specifications page and Self-Service Private API Catalog to see the APIs available to you.",
+          "keywords": [
+            "interoperability",
+            "API"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Data Exchange Capabilities",
+          "order": 3
+        },
+        {
+          "id": "vs-1090",
+          "question": "Does Epic support FHIR?",
+          "answer_html": "<p>Yes, Epic supports read and write operations for dozens of FHIR resources and sub-resources. We participate in the FHIR standards development process through HL7, as well as the <a href=\"https://confluence.hl7.org/display/AP\">Argonaut</a> and <a href=\"https://www.hl7.org/about/davinci/\">Da Vinci Projects</a>. You can learn more by enrolling and <a href=\"/Article?docId=fhir\">logging in to the Vendor Services website</a> or visiting <a href=\"https://open.epic.com\">open.epic</a>.</p>",
+          "answer_text": "Yes, Epic supports read and write operations for dozens of FHIR resources and sub-resources. We participate in the FHIR standards development process through HL7, as well as the Argonaut and Da Vinci Projects . You can learn more by enrolling and logging in to the Vendor Services website or visiting open.epic .",
+          "keywords": [
+            "interoperability",
+            "API",
+            "FHIR"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Data Exchange Capabilities",
+          "order": 4
+        },
+        {
+          "id": "vs-1092",
+          "question": "Does Epic support SMART on FHIR (OAuth 2.0)?",
+          "answer_html": "<p>Yes, Epic supports the SMART implementation of the OAuth 2.0 standard. We support both patient and non-patient (e.g. provider) authorization and both standalone launch and EHR launch, where a web application is launched with context from one of our desktop, mobile, or web applications. We also support related functionality, such as OpenID Connect (OIDC), JSON Web Tokens (JWT), client secret authentication, and refresh tokens. You can learn more by enrolling and <a href=\"/Article?docId=oauth2\">logging in to the Vendor Services website</a> or visiting <a href=\"https://open.epic.com\">open.epic</a>.</p>",
+          "answer_text": "Yes, Epic supports the SMART implementation of the OAuth 2.0 standard. We support both patient and non-patient (e.g. provider) authorization and both standalone launch and EHR launch, where a web application is launched with context from one of our desktop, mobile, or web applications. We also support related functionality, such as OpenID Connect (OIDC), JSON Web Tokens (JWT), client secret authentication, and refresh tokens. You can learn more by enrolling and logging in to the Vendor Services website or visiting open.epic .",
+          "keywords": [
+            "interoperability",
+            "SMART on FHIR",
+            "OAuth 2.0"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Data Exchange Capabilities",
+          "order": 6
+        },
+        {
+          "id": "vs-1094",
+          "question": "Does Epic support CDS Hooks?",
+          "answer_html": "<p>Yes, Epic supports the CDS Hooks standard for in-workflow decision support interactions between Epic software and external decision support services. We currently support the patient-view and order-sign hooks with pre-fetched information from the user’s session. You can learn more by enrolling and <a href=\"/Article?docId=clinicaldecisionsupport\">logging in to Vendor Services</a> or visiting <a href=\"https://open.epic.com\">open.epic</a>.</p>",
+          "answer_text": "Yes, Epic supports the CDS Hooks standard for in-workflow decision support interactions between Epic software and external decision support services. We currently support the patient-view and order-sign hooks with pre-fetched information from the user’s session. You can learn more by enrolling and logging in to Vendor Services or visiting open.epic .",
+          "keywords": [
+            "interoperability",
+            "API",
+            "FHIR",
+            "CDS Hooks"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Data Exchange Capabilities",
+          "order": 8
+        },
+        {
+          "id": "vs-1096",
+          "question": "Does Epic support clinical content and knowledge vendors?",
+          "answer_html": "<p>Yes, Epic enables our software customers to obtain clinical content, knowledge, and decision support from other vendors and embed these products within their Epic workflows. Common examples include patient instructions, clinical references, nursing documentation and care plans, medical knowledge databases, and external decision support engines. Contact a Vendor Services TS or use the \"Contact\" form located at the bottom of this page in the website footer to learn more.</p>",
+          "answer_text": "Yes, Epic enables our software customers to obtain clinical content, knowledge, and decision support from other vendors and embed these products within their Epic workflows. Common examples include patient instructions, clinical references, nursing documentation and care plans, medical knowledge databases, and external decision support engines. Contact a Vendor Services TS or use the \"Contact\" form located at the bottom of this page in the website footer to learn more.",
+          "keywords": [
+            "interoperability",
+            "content"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Data Exchange Capabilities",
+          "order": 10
+        },
+        {
+          "id": "vs-1097",
+          "question": "Does Epic support analytics and machine learning vendors?",
+          "answer_html": "<p>Yes, Epic enables other vendors to build applications, including analytics applications, on top of our Caboodle data warehouse product using a feature called Kit. Additionally, Epic offers a cloud-based cognitive computing platform that enables our customers to deploy predictive models and embed guidance directly within Epic workflows. Contact a Vendor Services TS  or use the \"Contact\" form located at the bottom of this page in the website footer to learn more.</p>",
+          "answer_text": "Yes, Epic enables other vendors to build applications, including analytics applications, on top of our Caboodle data warehouse product using a feature called Kit. Additionally, Epic offers a cloud-based cognitive computing platform that enables our customers to deploy predictive models and embed guidance directly within Epic workflows. Contact a Vendor Services TS  or use the \"Contact\" form located at the bottom of this page in the website footer to learn more.",
+          "keywords": [
+            "interoperability",
+            "analytics",
+            "machine learning",
+            "predictive models"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Data Exchange Capabilities",
+          "order": 11
+        }
+      ]
+    },
+    {
+      "section_id": 1086,
+      "section": "Marketing & Sales",
+      "order": 83,
+      "entries": [
+        {
+          "id": "vs-1112",
+          "question": "How do prospective customers buy my product?",
+          "answer_html": "<p>You work directly with your prospective customers to sell your product, negotiate pricing and terms, and invoice your customers.</p>",
+          "answer_text": "You work directly with your prospective customers to sell your product, negotiate pricing and terms, and invoice your customers.",
+          "keywords": [
+            "marketing",
+            "sales"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Marketing & Sales",
+          "order": 1
+        },
+        {
+          "id": "vs-1115",
+          "question": "What are Epic's trademark use guidelines?",
+          "answer_html": "<p>You can find our <a href=\"https://www.epic.com/epic/page/trademark-usage-guidelines-non-licensee/\">trademark use guidelines at Epic.com</a>.</p>",
+          "answer_text": "You can find our trademark use guidelines at Epic.com .",
+          "keywords": [
+            "marketing",
+            "sales",
+            "trademark"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Marketing & Sales",
+          "order": 4
+        },
+        {
+          "id": "vs-3516",
+          "question": "How do I request my organization's app be listed in Connection Hub?",
+          "answer_html": "<p>Anyone who has agreed to the relevant terms of service and can attest to one live connection with an Epic customer can request to be listed on Connection Hub. See <a href=\"/Article/Index?docid=chlistingrequest\">Requesting A Connection Hub Listing For Your App</a> for a step-by-step guide. </p>\n\n<p>Connection Hub on Showroom is an optional, paid marketing service that allows your app to be publicly discoverable. A listing is not required for customers to download your app. Refer to the <a href=\"/Article/Index?docId=requestprocess\">App Request Process</a> tutorial  for directions on how to facilitate customer app downloads.</p>",
+          "answer_text": "Anyone who has agreed to the relevant terms of service and can attest to one live connection with an Epic customer can request to be listed on Connection Hub. See Requesting A Connection Hub Listing For Your App for a step-by-step guide. \nConnection Hub on Showroom is an optional, paid marketing service that allows your app to be publicly discoverable. A listing is not required for customers to download your app. Refer to the App Request Process tutorial  for directions on how to facilitate customer app downloads.",
+          "keywords": [],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Marketing & Sales",
+          "order": 8
+        }
+      ]
+    },
+    {
+      "section_id": 1087,
+      "section": "Website Assistance",
+      "order": 84,
+      "entries": [
+        {
+          "id": "vs-1119",
+          "question": "How do I get a Vendor Services user account?",
+          "answer_html": "<p>If you work for one of Epic's customers, you log in using your UserWeb account. If you do not have a UserWeb account yet, you may <a href=\"https://userweb.epic.com/account/register\">register here</a>.</p>\n<p>If your company has not yet enrolled in Vendor Services, begin the <a href=\"https://appmarket.epic.com/Developer/Index\">enrollment process</a> to get started.</p>\n<p>If your company has already enrolled in Vendor Services, your company's admin user provisions user accounts to your staff. If you're unsure who your admin user is, fill out the <a href=\"https://appmarket.epic.com/Developer/Index\">registration form</a> using your work email address to send a request to your admin user.</p>",
+          "answer_text": "If you work for one of Epic's customers, you log in using your UserWeb account. If you do not have a UserWeb account yet, you may register here . \nIf your company has not yet enrolled in Vendor Services, begin the enrollment process to get started. \nIf your company has already enrolled in Vendor Services, your company's admin user provisions user accounts to your staff. If you're unsure who your admin user is, fill out the registration form using your work email address to send a request to your admin user.",
+          "keywords": [
+            "website",
+            "security",
+            "user",
+            "login"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Website Assistance",
+          "order": 1
+        },
+        {
+          "id": "vs-1120",
+          "question": "How do I log in to the Vendor Services website?",
+          "answer_html": "<p>If you work for an organization that participates in Vendor Services and you have already been provisioned a Vendor Services user account, then select Vendor Services from the Login menu and enter your Vendor Services credentials.</p>\n<p>If you work for one of Epic's customers, you log in using your UserWeb account. Select UserWeb from the Login menu and enter your credentials if requested. If your organization uses UserWeb single-sign on, then you'll use your Windows username and password if prompted.</p>",
+          "answer_text": "If you work for an organization that participates in Vendor Services and you have already been provisioned a Vendor Services user account, then select Vendor Services from the Login menu and enter your Vendor Services credentials. \nIf you work for one of Epic's customers, you log in using your UserWeb account. Select UserWeb from the Login menu and enter your credentials if requested. If your organization uses UserWeb single-sign on, then you'll use your Windows username and password if prompted.",
+          "keywords": [
+            "website",
+            "security",
+            "user",
+            "login"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Website Assistance",
+          "order": 4
+        },
+        {
+          "id": "vs-1121",
+          "question": "I'm having trouble logging into the Vendor Services website. What do I do?",
+          "answer_html": "<p>If you work for a Vendor Services participant or prospective participant and have already been provisioned a Vendor Services user account, then select Vendor Services from the Login menu. Then select \"Forgot username or password\". If you still have difficulty accessing your account, contact a Vendor Services TS or use the \"Contact\" form located at the bottom of this page in the website footer for assistance.</p>\n<p>If you work for one of Epic's customers, you log into the Vendor Services website using your UserWeb account. If your organization uses UserWeb single-sign on, then follow your organization's process for resetting your Windows username and password. Otherwise, go to the <a href=\"https://userweb.epic.com/Reset\">UserWeb login page</a> and select \"Forgot username or password\" for instructions. If you still have difficulty accessing your account, staff from Epic customers should contact <a href=\"mailto:userwebsupport@epic.com\">UserWeb Support</a>. Staff from Vendor Services members should contact <a href=\"mailto:vendorservices@epic.com\">vendorservices@epic.com</a>.</p>",
+          "answer_text": "If you work for a Vendor Services participant or prospective participant and have already been provisioned a Vendor Services user account, then select Vendor Services from the Login menu. Then select \"Forgot username or password\". If you still have difficulty accessing your account, contact a Vendor Services TS or use the \"Contact\" form located at the bottom of this page in the website footer for assistance. \nIf you work for one of Epic's customers, you log into the Vendor Services website using your UserWeb account. If your organization uses UserWeb single-sign on, then follow your organization's process for resetting your Windows username and password. Otherwise, go to the UserWeb login page and select \"Forgot username or password\" for instructions. If you still have difficulty accessing your account, staff from Epic customers should contact UserWeb Support . Staff from Vendor Services members should contact vendorservices@epic.com .",
+          "keywords": [
+            "website",
+            "security",
+            "user",
+            "login"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Website Assistance",
+          "order": 5
+        }
+      ]
+    },
+    {
+      "section_id": 1091,
+      "section": "Implementation",
+      "order": 87,
+      "entries": [
+        {
+          "id": "vs-9797",
+          "question": "Who will be involved in implementing my app?",
+          "answer_html": "<p>There are three main groups you’ll work with during implementation:</p>\n<ol>\n<li><strong>Operations</strong>: The stakeholders who directly represent end users. Often department leads, super users, and clinical representatives like physician/nurse champions.</li>\n<li><strong>IT</strong>: Primary technical support for Epic end users. This is commonly Epic certified analysts who work directly for the organization.</li>\n<li><strong>Epic Support</strong>: Epic Technical and Implementation Services staff from Epic who support the IT staff from the organization. They will be pulled in as needed by the other two groups.</li>\n</ol>\n<p>Our <a href=\"https://fhir.epic.com/Documentation?docId=eofcollaborate\">Collaborate with Epic Community Members</a> page provides guidance on how to prepare for and collaborate with all stakeholders at your prospective Epic Community Member. Ensure that you are being agile and flexible with each new integration, even if you have an existing integration design that has worked for other organizations.</p>",
+          "answer_text": "There are three main groups you’ll work with during implementation: \n\nOperations : The stakeholders who directly represent end users. Often department leads, super users, and clinical representatives like physician/nurse champions. \nIT : Primary technical support for Epic end users. This is commonly Epic certified analysts who work directly for the organization. \nEpic Support : Epic Technical and Implementation Services staff from Epic who support the IT staff from the organization. They will be pulled in as needed by the other two groups. \nOur Collaborate with Epic Community Members page provides guidance on how to prepare for and collaborate with all stakeholders at your prospective Epic Community Member. Ensure that you are being agile and flexible with each new integration, even if you have an existing integration design that has worked for other organizations.",
+          "keywords": [
+            "implement",
+            "implementation",
+            "implementing"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Implementation",
+          "order": 5
+        }
+      ]
+    },
+    {
+      "section_id": 1092,
+      "section": "Development & Testing",
+      "order": 88,
+      "entries": [
+        {
+          "id": "vs-1240",
+          "question": "What testing tools are offered through Vendor Services?",
+          "answer_html": "Vendor Services offers a number of testing tools that interact with an Epic-hosted Non-Production environment sandbox:\n<ul>\n<li>Try-it cases can be used from API specifications to quickly test a web service request against the sandbox.</li>\n<li>The Hyperspace Simulator can be used to test seven different workflows, including SMART on FHIR and CDS Hooks.</li>\n<li>The Hyperdrive testing harness can be used to test your application on Epic's web-based client, Hyperdrive.</li>\n<li>Embedded mobile applications can be tested from within Epic's iOS and Android apps with the assistance of your Epic representative.</li>\n<li>Embedded MyChart workflows can be tested in a publicly accessible MyChart instance with the assistance of your Epic representative.</li>\n<li>Embedded Hyperspace workflows can be tested with the assistance of your Epic representative.</li>\n</ul>",
+          "answer_text": "Vendor Services offers a number of testing tools that interact with an Epic-hosted Non-Production environment sandbox: \n\nTry-it cases can be used from API specifications to quickly test a web service request against the sandbox. \nThe Hyperspace Simulator can be used to test seven different workflows, including SMART on FHIR and CDS Hooks. \nThe Hyperdrive testing harness can be used to test your application on Epic's web-based client, Hyperdrive. \nEmbedded mobile applications can be tested from within Epic's iOS and Android apps with the assistance of your Epic representative. \nEmbedded MyChart workflows can be tested in a publicly accessible MyChart instance with the assistance of your Epic representative. \nEmbedded Hyperspace workflows can be tested with the assistance of your Epic representative.",
+          "keywords": [
+            "testing",
+            "tools"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Development & Testing",
+          "order": 3
+        }
+      ]
+    },
+    {
+      "section_id": 1093,
+      "section": "Design, Technical, & Install Support",
+      "order": 89,
+      "entries": [
+        {
+          "id": "vs-1265",
+          "question": "What design assistance is offered through Vendor Services?",
+          "answer_html": "<p>A subscription to Vendor Services offers a few paths for design assistance:</p>\n<ul>\n<li>Design-centric resources and documentation</li>\n<li>Testing tools to assist with on-the-fly testing during the design and development phase</li>\n<li>Workflow and integration design expertise and direct support from Vendor Services TS</li>",
+          "answer_text": "A subscription to Vendor Services offers a few paths for design assistance: \n\nDesign-centric resources and documentation \nTesting tools to assist with on-the-fly testing during the design and development phase \nWorkflow and integration design expertise and direct support from Vendor Services TS",
+          "keywords": [
+            "design",
+            "assistance"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Design, Technical, & Install Support",
+          "order": 3
+        }
+      ]
+    },
+    {
+      "section_id": 1109,
+      "section": "Showroom",
+      "order": 91,
+      "entries": [
+        {
+          "id": "vs-5797",
+          "question": "What is Showroom?",
+          "answer_html": "<p><a href=\"https://showroom.epic.com\">Showroom</a href> is Epic's marketplace where anyone can discover services to help our customers achieve strategic goals, Health Grid Networks that bring information together, and products that can connect to Epic.</p>\n<p>If you are interested in listing your product in Showroom, review <a href=\"https://fhir.epic.com/Documentation?docId=chlistingrequest\"> this tutorial</a> for more information.</p>",
+          "answer_text": "Showroom is Epic's marketplace where anyone can discover services to help our customers achieve strategic goals, Health Grid Networks that bring information together, and products that can connect to Epic. \nIf you are interested in listing your product in Showroom, review this tutorial for more information.",
+          "keywords": [
+            "Showroom"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Showroom",
+          "order": 1
+        },
+        {
+          "id": "vs-5798",
+          "question": "What are the differences between the Showroom Product tiers?",
+          "answer_html": "<ul>\n<li><b>Cornerstone Partners:</b> Technologies that are integral to Epic software.\n\n<li><b>Workshop:</b> Products using new integrations under co-development with Epic. Will move to Toolbox as the underlying integrations mature and technology becomes generally available.\n\n<li><b>Toolbox:</b> Products in specific categories that follow Epic’s recommended practices for integration (aka Blueprint).\n\n<li><b>Toolbox Under Construction:</b> Products in Toolbox categories whose recommended practices are still being developed.\n\n<li><b>Connection Hub:</b> Products with a live connection to at least one Epic site.\n</ul>",
+          "answer_text": "Cornerstone Partners: Technologies that are integral to Epic software. \nWorkshop: Products using new integrations under co-development with Epic. Will move to Toolbox as the underlying integrations mature and technology becomes generally available. \nToolbox: Products in specific categories that follow Epic’s recommended practices for integration (aka Blueprint). \nToolbox Under Construction: Products in Toolbox categories whose recommended practices are still being developed. \nConnection Hub: Products with a live connection to at least one Epic site.",
+          "keywords": [
+            "Showroom",
+            "tier"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Showroom",
+          "order": 2
+        },
+        {
+          "id": "vs-5815",
+          "question": "Can the designation for a product in Showroom change?",
+          "answer_html": "Yes. We plan to regularly evaluate new products and categories eligible for Toolbox and Workshop.",
+          "answer_text": "Yes. We plan to regularly evaluate new products and categories eligible for Toolbox and Workshop.",
+          "keywords": [
+            "Showroom",
+            "products"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Showroom",
+          "order": 4
+        },
+        {
+          "id": "vs-5800",
+          "question": "What are the differences between open.epic, Epic on FHIR, Vendor Services, and Showroom?",
+          "answer_html": "<ul>\n<li><b><a href=\"https://open.epic.com/\">open.epic</a></b> is a free online resource available to all developers to learn about and engage in data exchange with Epic. We provide technical specifications for our standards-based interfaces and APIs, self-service testing sandbox and client registration for FHIR clients, and a variety of self-services information to help developers locate the right Epic tools or services.</li>\n\n<li><b><a href=\"https://fhir.epic.com/\">Epic on FHIR</a></b> is a free online resource and subset of open.epic that supports developers who create applications or services for use by provider organizations and wish to interoperate with the Epic comprehensive medical record. At fhir.epic.com, developers will find documentation on Epic's support for the HL7 FHIR APIs. Through this site, developers may also acquire a client ID for use with their application and test in our sandbox.</li>\n\n<li><b><a href=\"https://vendorservices.epic.com/\">Vendor Services</a></b> is a collection of services offered by Epic to developers who are looking to integrate their product with Epic software. Any developer that meets the enrollment criteria can subscribe. Refer to our <a href=\" https://vendorservices.epic.com/FAQ/Index?Question=1072&Category=1082\"> What is Vendor Services</a> FAQ for more information.</li>\n\n<li><b><a href=\"https://showroom.epic.com/\">Showroom</a></b>  is Epic's marketplace where anyone can discover services to help our customers achieve strategic goals, Health Grid Networks that bring information together, and products that can connect to Epic.</li>",
+          "answer_text": "open.epic is a free online resource available to all developers to learn about and engage in data exchange with Epic. We provide technical specifications for our standards-based interfaces and APIs, self-service testing sandbox and client registration for FHIR clients, and a variety of self-services information to help developers locate the right Epic tools or services. \nEpic on FHIR is a free online resource and subset of open.epic that supports developers who create applications or services for use by provider organizations and wish to interoperate with the Epic comprehensive medical record. At fhir.epic.com, developers will find documentation on Epic's support for the HL7 FHIR APIs. Through this site, developers may also acquire a client ID for use with their application and test in our sandbox. \nVendor Services is a collection of services offered by Epic to developers who are looking to integrate their product with Epic software. Any developer that meets the enrollment criteria can subscribe. Refer to our What is Vendor Services FAQ for more information. \nShowroom is Epic's marketplace where anyone can discover services to help our customers achieve strategic goals, Health Grid Networks that bring information together, and products that can connect to Epic.",
+          "keywords": [],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Showroom",
+          "order": 5
+        }
+      ]
+    },
+    {
+      "section_id": 1088,
+      "section": "Contact Us",
+      "order": 92,
+      "entries": [
+        {
+          "id": "vs-1125",
+          "question": "What's the best way to contact Epic regarding Vendor Services?",
+          "answer_html": "<p>If you work for one of our customers or Vendor Services developers, contact a Vendor Services TS directly by Sherlock, email, or phone.</p>\n<p>Otherwise, if you have questions about Vendor Services, use the \"Contact\" form located at the bottom of this page in the website footer.</p>\n<p>For additional contact information, visit <a href=\"https://www.epic.com/contact\">Epic.com</a>.</p>",
+          "answer_text": "If you work for one of our customers or Vendor Services developers, contact a Vendor Services TS directly by Sherlock, email, or phone. \nOtherwise, if you have questions about Vendor Services, use the \"Contact\" form located at the bottom of this page in the website footer. \nFor additional contact information, visit Epic.com .",
+          "keywords": [
+            "contact"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Contact Us",
+          "order": 1
+        },
+        {
+          "id": "vs-1126",
+          "question": "What is Epic's contact information?",
+          "answer_html": "<p>\n1979 Milky Way<br>\nVerona, Wisconsin 53593<br>\nPhone: 608-271-9000<br>\n</p>\n<p>For additional contact information, visit <a href=\"https://www.epic.com/contact\">Epic.com</a>.</p>",
+          "answer_text": "1979 Milky Way \nVerona, Wisconsin 53593 \nPhone: 608-271-9000 \n\nFor additional contact information, visit Epic.com .",
+          "keywords": [
+            "contact"
+          ],
+          "source_url": "https://vendorservices.epic.com/FAQ/Index",
+          "section": "Contact Us",
+          "order": 2
+        }
+      ]
+    }
+  ]
+}

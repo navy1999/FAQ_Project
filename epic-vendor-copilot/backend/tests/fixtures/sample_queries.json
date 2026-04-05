@@ -1,0 +1,12 @@
+[
+  {"query": "what is vendor services", "expected_section": "General"},
+  {"query": "how do I enroll", "expected_route": "enrollment"},
+  {"query": "I forgot my password", "expected_route": "admin_escalation"},
+  {"query": "what FHIR APIs are available", "expected_section": "Data Exchange Capabilities"},
+  {"query": "tell me about pizza", "expected": "domain_miss"},
+  {"query": "how do I get a sandbox", "expected_section": "Development & Testing"},
+  {"query": "is there a free trial", "expected_section": "Membership"},
+  {"query": "patient data HIPAA", "expected_route": "hipaa"},
+  {"query": "how do I join the developer forum", "expected_section": "Learning & Networking"},
+  {"query": "what does vendor services cost", "expected_section": "Membership"}
+]
