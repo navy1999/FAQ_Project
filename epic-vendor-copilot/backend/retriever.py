@@ -80,6 +80,8 @@ for entry in _ENTRIES:
         if len(kw_lower) > 4:
             _BLOOM.add(kw_lower)
 
+_BLOOM.add("sandbox")
+
 
 # ── BloomRetriever ───────────────────────────────────────────────────────────
 
@@ -113,12 +115,21 @@ class BloomRetriever:
         """
         Check if query has any lexical overlap with FAQ domain.
         Returns True if in-domain (at least one word hits), False if out-of-domain.
+        Also checks simple plurals to prevent strict rejection.
         """
         tokens = _tokenize_for_bloom(query)
         if not tokens:
             return False  # No meaningful tokens → treat as out-of-domain
         for token in tokens:
             if token in self.bloom:
+                return True
+            # Check implicit singulars
+            if token.endswith("s") and token[:-1] in self.bloom:
+                return True
+            if token.endswith("es") and token[:-2] in self.bloom:
+                return True
+            # Check implicit plurals
+            if token + "s" in self.bloom or token + "es" in self.bloom:
                 return True
         return False
 

@@ -16,4 +16,5 @@ export type Message = {
   domainRoute: string | null
   clarificationNeeded: boolean
   timestamp: number
+  streaming?: boolean
 }

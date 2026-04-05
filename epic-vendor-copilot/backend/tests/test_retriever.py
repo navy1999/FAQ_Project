@@ -82,3 +82,12 @@ class TestClarificationNeeded:
         """A single ambiguous word should not return confident results."""
         result = retrieve("stuff about things")
         assert result["domain_miss"] is True or result["needs_clarification"] is True
+
+class TestPluralization:
+    """Test morphological variants (e.g., plurals) correctly bypass the Bloom Filter."""
+
+    def test_plural_vendors(self):
+        """'vendors' should hit 'vendor' and pass the Bloom check."""
+        result = retrieve("vendors")
+        # Should not be a domain_miss! It might need clarification depending on score, but PyBloom passes.
+        assert result["domain_miss"] is False

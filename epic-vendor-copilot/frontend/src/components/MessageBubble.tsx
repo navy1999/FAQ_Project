@@ -24,6 +24,7 @@ export function MessageBubble({ message }: { message: Message }) {
         lineHeight: '1.5'
       }}>
         {message.content}
+        {message.streaming && <span style={{ animation: 'blink 1s step-end infinite' }}>|</span>}
 
         {message.domainRoute && (
           <div style={{

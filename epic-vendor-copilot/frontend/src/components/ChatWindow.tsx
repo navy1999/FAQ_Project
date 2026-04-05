@@ -91,6 +91,9 @@ export function ChatWindow() {
           0%, 100% { opacity: 0.3; }
           50% { opacity: 1; }
         }
+        @keyframes blink {
+          50% { opacity: 0; }
+        }
       `}</style>
     </div>
   );

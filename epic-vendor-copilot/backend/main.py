@@ -16,7 +16,9 @@ import asyncio
 import time
 from contextlib import asynccontextmanager
 
+import json
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 
@@ -186,6 +188,21 @@ async def chat(req: ChatRequest):
 
     # Step 3: Retrieval
     retrieval_result = retriever.retrieve(req.message)
+
+    if retrieval_result.get("domain_miss") or retrieval_result.get("needs_clarification"):
+        context_window = memory.context_window()
+        last_user_query = None
+        for turn in reversed(context_window):
+            if turn.role == "user":
+                last_user_query = turn.content
+                break
+        
+        if last_user_query:
+            expanded_query = f"{last_user_query} {req.message}"
+            expanded_result = retriever.retrieve(expanded_query)
+            if not expanded_result.get("domain_miss") and not expanded_result.get("needs_clarification"):
+                retrieval_result = expanded_result
+
     retrieved_ids = [r["id"] for r in retrieval_result.get("results", [])]
 
     # Step 4: Memory overlap check
@@ -247,6 +264,135 @@ async def chat(req: ChatRequest):
         clarification_needed=synth["clarification_needed"],
         mode=synth["mode"],
     )
+
+
+@app.post("/chat/stream")
+async def chat_stream(req: ChatRequest):
+    """
+    Streaming version of the chat endpoint.
+    Returns SSE stream with data: {"chunk": "..."} and finally data: {"done": true, ...}.
+    """
+    memory = session_store.get_or_create(req.session_id)
+    retriever = _get_retriever()
+    current_turn_index = len(memory.context_window())
+
+    # Step 1: Domain rules check
+    route_result = check_domain_rules(req.message)
+
+    if route_result:
+        async def mock_stream():
+            words = route_result["response"].split(" ")
+            assistant_content = ""
+            for i, word in enumerate(words):
+                chunk = word + (" " if i < len(words) - 1 else "")
+                assistant_content += chunk
+                yield f'data: {json.dumps({"chunk": chunk})}\n\n'
+                await asyncio.sleep(0.03)
+            
+            final_payload = {
+                "done": True,
+                "source": None,
+                "memory_used": False,
+                "memory_turn_refs": [],
+                "domain_route": route_result["route"],
+                "clarification_needed": False,
+                "mode": MODE
+            }
+            yield f'data: {json.dumps(final_payload)}\n\n'
+
+            user_turn = Turn(role="user", content=req.message, retrieved_ids=[], turn_index=current_turn_index, timestamp=time.time())
+            memory.add(user_turn)
+            assistant_turn = Turn(role="assistant", content=assistant_content, retrieved_ids=[], turn_index=current_turn_index + 1, timestamp=time.time())
+            memory.add(assistant_turn)
+
+        return StreamingResponse(mock_stream(), media_type="text/event-stream")
+
+    # Step 3: Retrieval
+    retrieval_result = retriever.retrieve(req.message)
+
+    if retrieval_result.get("domain_miss") or retrieval_result.get("needs_clarification"):
+        context_window = memory.context_window()
+        last_user_query = None
+        for turn in reversed(context_window):
+            if turn.role == "user":
+                last_user_query = turn.content
+                break
+        
+        if last_user_query:
+            expanded_query = f"{last_user_query} {req.message}"
+            expanded_result = retriever.retrieve(expanded_query)
+            if not expanded_result.get("domain_miss") and not expanded_result.get("needs_clarification"):
+                retrieval_result = expanded_result
+
+    retrieved_ids = [r["id"] for r in retrieval_result.get("results", [])]
+
+    previously_used = memory.used_faq_ids()
+    overlapping_ids = set(retrieved_ids) & previously_used
+    memory_used = len(overlapping_ids) > 0
+
+    memory_turn_refs = []
+    if memory_used:
+        for turn in memory.context_window():
+            if set(turn.retrieved_ids) & overlapping_ids:
+                memory_turn_refs.append(turn.turn_index)
+
+    # Step 4: Stream Synthesis Interception
+    from backend.responder import synthesize_stream
+
+    async def response_generator():
+        assistant_content = ""
+        stream_gen = synthesize_stream(
+            query=req.message,
+            retrieval_result=retrieval_result,
+            memory=memory,
+            domain_route=None,
+        )
+
+        async for sse_message in stream_gen:
+            if not sse_message.startswith("data: "):
+                continue
+            data_str = sse_message.replace("data: ", "").strip()
+            try:
+                payload = json.loads(data_str)
+                if "chunk" in payload:
+                    assistant_content += payload["chunk"]
+                    yield sse_message
+                elif "done" in payload:
+                    payload["memory_used"] = memory_used
+                    payload["memory_turn_refs"] = memory_turn_refs
+                    source = None
+                    if retrieval_result.get("results"):
+                        top = retrieval_result["results"][0]
+                        source = {
+                            "id": top["id"], "section": top["section"], "question": top["question"],
+                            "url": top["source_url"], "confidence": top["score"]
+                        }
+                    payload["source"] = source
+                    if "source_ids" in payload:
+                        del payload["source_ids"]
+                    yield f"data: {json.dumps(payload)}\n\n"
+            except json.JSONDecodeError:
+                yield sse_message
+
+        user_turn = Turn(
+            role="user",
+            content=req.message,
+            retrieved_ids=retrieved_ids,
+            turn_index=current_turn_index,
+            timestamp=time.time(),
+        )
+        memory.add(user_turn)
+
+        assistant_turn = Turn(
+            role="assistant",
+            content=assistant_content,
+            retrieved_ids=retrieved_ids,
+            turn_index=current_turn_index + 1,
+            timestamp=time.time(),
+        )
+        memory.add(assistant_turn)
+
+    return StreamingResponse(response_generator(), media_type="text/event-stream")
 
 
 @app.get("/session/{session_id}/memory")

@@ -14,6 +14,8 @@ No FastAPI imports — importable standalone.
 """
 
 import os
+import json
+import asyncio
 
 # ── OpenAI availability detection ─────────────────────────────────────────────
 
@@ -284,3 +286,110 @@ def synthesize(
         return _llm_synthesize(query, retrieval_result, memory_context, domain_route)
     else:
         return _template_synthesize(query, retrieval_result, memory_context, domain_route)
+
+# ── Streaming API ────────────────────────────────────────────────────────────
+
+async def _template_synthesize_streaming(
+    query: str,
+    retrieval_result: dict,
+    memory_context: list[dict],
+    domain_route: str | None,
+):
+    # Get the complete deterministic answer
+    sync_result = _template_synthesize(query, retrieval_result, memory_context, domain_route)
+    answer = sync_result["answer"]
+    words = answer.split(" ")
+    
+    for i, word in enumerate(words):
+        chunk = word + (" " if i < len(words) - 1 else "")
+        yield f'data: {json.dumps({"chunk": chunk})}\n\n'
+        await asyncio.sleep(0.03)
+
+    final_payload = {
+        "done": True,
+        "source_ids": sync_result["source_ids"],
+        "clarification_needed": sync_result["clarification_needed"],
+        "mode": sync_result["mode"],
+        "token_budget_used": sync_result["token_budget_used"]
+    }
+    yield f'data: {json.dumps(final_payload)}\n\n'
+
+
+async def _llm_synthesize_streaming(
+    query: str,
+    retrieval_result: dict,
+    memory_context: list[dict],
+    domain_route: str | None,
+):
+    results = retrieval_result.get("results", [])
+    needs_clarification = retrieval_result.get("needs_clarification", False)
+    domain_miss = retrieval_result.get("domain_miss", False)
+
+    prompt = build_prompt(query, results, memory_context, domain_route)
+
+    if not _OPENAI_AVAILABLE:
+        async for chunk in _template_synthesize_streaming(query, retrieval_result, memory_context, domain_route):
+            yield chunk
+        return
+
+    if _LLM_PROVIDER == "openrouter":
+        client = openai.AsyncOpenAI(
+            api_key=_OPENROUTER_KEY,
+            base_url=_OPENROUTER_BASE_URL,
+            default_headers={
+                "HTTP-Referer": "http://localhost:5173",
+                "X-Title": "Epic Vendor Copilot",
+            },
+        )
+        model = _OPENROUTER_MODEL
+    else:
+        client = openai.AsyncOpenAI(api_key=_OPENAI_KEY)
+        model = "gpt-4o-mini"
+
+    stream = await client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": _SYSTEM_PERSONA},
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=300,
+        temperature=0.2,
+        stream=True,
+        extra_body={
+            "chat_template_kwargs": {
+                "enable_thinking": False
+            },
+        },
+    )
+
+    async for chunk in stream:
+        if chunk.choices and len(chunk.choices) > 0:
+            delta_content = chunk.choices[0].delta.content
+            if delta_content:
+                yield f'data: {json.dumps({"chunk": delta_content})}\n\n'
+
+    final_payload = {
+        "done": True,
+        "source_ids": [r["id"] for r in results],
+        "clarification_needed": needs_clarification or domain_miss,
+        "mode": "llm",
+        "token_budget_used": _count_tokens(prompt)
+    }
+    yield f'data: {json.dumps(final_payload)}\n\n'
+
+async def synthesize_stream(
+    query: str,
+    retrieval_result: dict,
+    memory: object | None = None,
+    domain_route: str | None = None,
+):
+    memory_context = []
+    if memory is not None and hasattr(memory, "recency_context"):
+        memory_context = memory.recency_context()
+
+    if MODE == "llm":
+        async for chunk in _llm_synthesize_streaming(query, retrieval_result, memory_context, domain_route):
+            yield chunk
+    else:
+        async for chunk in _template_synthesize_streaming(query, retrieval_result, memory_context, domain_route):
+            yield chunk

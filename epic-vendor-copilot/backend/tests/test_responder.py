@@ -195,3 +195,49 @@ class TestSynthesizeWithMemory:
         result = synthesize("what is vendor services", retrieval, memory=mem)
         assert result["answer"]
         assert result["mode"] == "template"
+
+class TestSynthesizeStream:
+    """Test the synthesize_stream generator."""
+
+    @pytest.mark.asyncio
+    async def test_stream_template_mode(self):
+        from backend.responder import synthesize_stream
+        import json
+
+        retrieval = {
+            "results": [
+                {
+                    "id": "vs-1072",
+                    "section": "General",
+                    "question": "What is Vendor Services?",
+                    "answer_text": "Vendor Services is a support program.",
+                    "answer_html": "",
+                    "source_url": "https://vendorservices.epic.com/FAQ/Index",
+                    "score": 0.92,
+                }
+            ],
+            "domain_miss": False,
+            "needs_clarification": False,
+        }
+
+        chunks = []
+        done_payload = None
+
+        async for sse_message in synthesize_stream("what is vendor services", retrieval):
+            assert sse_message.startswith("data: ")
+            data_str = sse_message.replace("data: ", "").strip()
+            payload = json.loads(data_str)
+            if "chunk" in payload:
+                chunks.append(payload["chunk"])
+            elif "done" in payload:
+                done_payload = payload
+
+        # verify all chunks assemble into the answer
+        full_answer = "".join(chunks)
+        assert "Vendor Services is a support program." in full_answer
+        
+        # verify done payload contains required keys
+        assert done_payload is not None
+        assert done_payload["done"] is True
+        assert done_payload["mode"] == "template"
+        assert "vs-1072" in done_payload["source_ids"]
