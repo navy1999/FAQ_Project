@@ -18,3 +18,4 @@ Visibility in the UX (the "Memory Indicator" pill) was a deliberate design choic
 - **Authentication**: No auth is implemented whatsoever to keep the application highly portable and localized.
 - **HIPAA Data**: Synthetic handling only. A specific domain rule instantly rejects inquiries asking to process or handle HIPAA data since this is a local sandbox tool.
 - **LLM Dependency**: Since standard usage is completely local/template-based to guarantee function offline, we accept the tradeoff that multi-source synthesis is slightly rigid compared to GPT-4o-mini, unless the fallback OpenAI key is exported.
+- **LRU embedding cache** — O(1) repeated query lookup avoids re-running the 22ms SBERT forward pass for identical queries. Bounded at 128 entries (~50KB memory). Cache stats exposed via /health.

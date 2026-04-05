@@ -32,6 +32,7 @@ import faiss
 import numpy as np
 from pybloom_live import BloomFilter
 from sentence_transformers import SentenceTransformer
+from functools import lru_cache
 
 # ── Load FAQ entries ──────────────────────────────────────────────────────────
 
@@ -81,6 +82,23 @@ for entry in _ENTRIES:
             _BLOOM.add(kw_lower)
 
 _BLOOM.add("sandbox")
+
+_CACHE_STATS = {"hits": 0, "misses": 0, "size": 0}
+
+@lru_cache(maxsize=128)
+def _encode_query_inner(query_text: str) -> np.ndarray:
+    """Cache SBERT embeddings for repeated queries. O(1) cache hit."""
+    _CACHE_STATS["misses"] += 1
+    embed = _MODEL.encode([query_text], convert_to_numpy=True, normalize_embeddings=False)
+    return embed.astype(np.float32)
+
+def _encode_query(query_text: str) -> np.ndarray:
+    prev_misses = _CACHE_STATS["misses"]
+    result = _encode_query_inner(query_text)
+    if _CACHE_STATS["misses"] == prev_misses:
+        _CACHE_STATS["hits"] += 1
+    _CACHE_STATS["size"] = _encode_query_inner.cache_info().currsize
+    return result
 
 
 # ── BloomRetriever ───────────────────────────────────────────────────────────
@@ -154,8 +172,7 @@ class BloomRetriever:
             }
 
         # Stage 2: FAISS ANN search
-        query_embedding = self.model.encode([query], convert_to_numpy=True, normalize_embeddings=False)
-        query_embedding = query_embedding.astype(np.float32)
+        query_embedding = _encode_query(query)
         faiss.normalize_L2(query_embedding)
 
         scores, indices = self.index.search(query_embedding, top_k)

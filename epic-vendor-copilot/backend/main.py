@@ -428,5 +428,6 @@ async def health():
             "active_sessions": session_store.active_count(),
             "max_turns_per_session": 6
         },
+        "cache": _retriever_module._CACHE_STATS if _retriever_module else {"hits": 0, "misses": 0, "size": 0},
         "uptime_seconds": round(time.time() - _STARTUP_TIME, 2)
     }
