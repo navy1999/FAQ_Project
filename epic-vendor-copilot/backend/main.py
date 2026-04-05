@@ -22,7 +22,7 @@ from pydantic import BaseModel, field_validator
 
 from backend.domain_rules import check_domain_rules
 from backend.memory import ConversationMemory, SessionStore, Turn
-from backend.responder import MODE, synthesize
+from backend.responder import MODE, _LLM_PROVIDER, synthesize
 
 # ── Lazy-loaded retriever ────────────────────────────────────────────────────
 
@@ -265,9 +265,9 @@ async def delete_session(session_id: str):
 
 @app.get("/health")
 async def health():
-    """Health check endpoint."""
     return {
         "status": "ok",
         "entries_loaded": _entries_count,
         "mode": MODE,
+        "provider": _LLM_PROVIDER or "none",
     }

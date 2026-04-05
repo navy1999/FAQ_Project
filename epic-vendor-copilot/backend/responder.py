@@ -24,7 +24,22 @@ except ImportError:
     _OPENAI_AVAILABLE = False
 
 _OPENAI_KEY = os.getenv("OPENAI_API_KEY")
-MODE = "llm" if (_OPENAI_AVAILABLE and _OPENAI_KEY) else "template"
+
+#Openrouter key and config
+_OPENROUTER_KEY=os.getenv("OPENROUTER_API_KEY")
+_OPENROUTER_BASE_URL="https://openrouter.ai/api/v1"
+_OPENROUTER_MODEL="qwen/qwen3.6-plus:free"
+
+if _OPENROUTER_KEY and _OPENAI_AVAILABLE:
+    MODE = "llm"
+    _LLM_PROVIDER = "openrouter"
+elif _OPENAI_AVAILABLE and _OPENAI_KEY:
+    MODE = "llm"
+    _LLM_PROVIDER = "openai"
+else:
+    MODE = "template"
+    _LLM_PROVIDER = None
+
 
 # ── System persona ───────────────────────────────────────────────────────────
 
@@ -181,34 +196,49 @@ def _llm_synthesize(
     memory_context: list[dict],
     domain_route: str | None,
 ) -> dict:
-    """
-    MODE_B: OpenAI gpt-4o-mini response synthesis.
-    """
     results = retrieval_result.get("results", [])
     needs_clarification = retrieval_result.get("needs_clarification", False)
     domain_miss = retrieval_result.get("domain_miss", False)
 
     prompt = build_prompt(query, results, memory_context, domain_route)
 
-    if not _OPENAI_AVAILABLE or not _OPENAI_KEY:
-        # Fallback to template if openai somehow unavailable
+    if not _OPENAI_AVAILABLE:
         return _template_synthesize(query, retrieval_result, memory_context, domain_route)
 
-    client = openai.OpenAI(api_key=_OPENAI_KEY)
+    # Build client — OpenRouter or OpenAI
+    if _LLM_PROVIDER == "openrouter":
+        client = openai.OpenAI(
+            api_key=_OPENROUTER_KEY,
+            base_url=_OPENROUTER_BASE_URL,
+            default_headers={
+                "HTTP-Referer": "http://localhost:5173",   # required by OpenRouter
+                "X-Title": "Epic Vendor Copilot",          # shows in your OR dashboard
+            },
+        )
+        model = _OPENROUTER_MODEL
+    else:
+        client = openai.OpenAI(api_key=_OPENAI_KEY)
+        model = "gpt-4o-mini"
+
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=model,
         messages=[
             {"role": "system", "content": _SYSTEM_PERSONA},
             {"role": "user", "content": prompt},
         ],
         max_tokens=300,
+        temperature=0.2,
+        extra_body={
+            "chat_template_kwargs":{
+                "enable_thinking":False
+            },
+        },
     )
 
     answer = response.choices[0].message.content
     usage = response.usage
-    print(f"[LLM] Tokens used — prompt: {usage.prompt_tokens}, "
-          f"completion: {usage.completion_tokens}, "
-          f"total: {usage.total_tokens}")
+    print(f"[LLM:{_LLM_PROVIDER}] Tokens — prompt: {usage.prompt_tokens}, "
+          f"completion: {usage.completion_tokens}, total: {usage.total_tokens}")
 
     return {
         "answer": answer,
