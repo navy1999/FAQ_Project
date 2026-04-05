@@ -24,7 +24,9 @@ from pydantic import BaseModel, field_validator
 
 from backend.domain_rules import check_domain_rules
 from backend.memory import ConversationMemory, SessionStore, Turn
-from backend.responder import MODE, _LLM_PROVIDER, synthesize
+from backend.responder import MODE, _LLM_PROVIDER, _OPENROUTER_MODEL, synthesize
+
+_STARTUP_TIME = time.time()
 
 # ── Lazy-loaded retriever ────────────────────────────────────────────────────
 
@@ -416,4 +418,15 @@ async def health():
         "entries_loaded": _entries_count,
         "mode": MODE,
         "provider": _LLM_PROVIDER or "none",
+        "model": _OPENROUTER_MODEL if MODE == "llm" else "n/a",
+        "retriever": {
+            "type": "bloom+faiss",
+            "index_size": _entries_count,
+            "embedding_model": "all-MiniLM-L6-v2"
+        },
+        "memory": {
+            "active_sessions": session_store.active_count(),
+            "max_turns_per_session": 6
+        },
+        "uptime_seconds": round(time.time() - _STARTUP_TIME, 2)
     }

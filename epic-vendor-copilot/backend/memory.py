@@ -138,3 +138,7 @@ class SessionStore:
             del self._store[session_id]
             return True
         return False
+
+    def active_count(self) -> int:
+        """Return the number of currently active sessions."""
+        return len(self._store)
