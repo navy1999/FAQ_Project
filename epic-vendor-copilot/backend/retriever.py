@@ -90,11 +90,13 @@ def _encode_query_inner(query_text: str) -> np.ndarray:
     """Cache SBERT embeddings for repeated queries. O(1) cache hit."""
     _CACHE_STATS["misses"] += 1
     embed = _MODEL.encode([query_text], convert_to_numpy=True, normalize_embeddings=False)
-    return embed.astype(np.float32)
+    arr = embed.astype(np.float32)
+    arr.flags.writeable = False
+    return arr
 
 def _encode_query(query_text: str) -> np.ndarray:
     prev_misses = _CACHE_STATS["misses"]
-    result = _encode_query_inner(query_text)
+    result = _encode_query_inner(query_text).copy()
     if _CACHE_STATS["misses"] == prev_misses:
         _CACHE_STATS["hits"] += 1
     _CACHE_STATS["size"] = _encode_query_inner.cache_info().currsize

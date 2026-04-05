@@ -91,6 +91,9 @@ export function useConversation() {
               setMessages(prev => 
                 prev.map(m => m.id === tempId ? { ...m, content: currentContent } : m)
               );
+              if (currentContent.length > 0 && isLoading) {
+                setIsLoading(false);
+              }
             } else if (payload.done) {
               isDone = true;
               setMessages(prev => 

@@ -27,10 +27,10 @@ class TestIntegration:
         })
         assert response.status_code == 422
 
-    async def test_chat_message_too_long_returns_422(self, client):
+    async def test_chat_message_over_500_chars_returns_422(self, client):
         response = await client.post("/chat", json={
             "session_id": "test_session_1",
-            "message": "a" * 1001
+            "message": "a" * 501     # one over the 500-char limit in the validator
         })
         assert response.status_code == 422
 

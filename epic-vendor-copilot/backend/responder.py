@@ -4,8 +4,11 @@ responder.py
 Response synthesis for the Epic Vendor Services FAQ copilot.
 
 Modes:
-  MODE_A (template): Deterministic template-based synthesis when no OpenAI key
-  MODE_B (LLM): OpenAI gpt-4o-mini when OPENAI_API_KEY is set
+  MODE_A (template): Deterministic template-based synthesis — no API key needed.
+                     Streams word-by-word with 30ms delay for UX consistency.
+  MODE_B (llm):      OpenRouter (Qwen3 free tier) when OPENROUTER_API_KEY is set.
+                     Falls back to OpenAI if OPENAI_API_KEY is set instead.
+                     Uses AsyncOpenAI with stream=True and enable_thinking=False.
 
 Token budget: 800 tokens (whitespace-split approximation).
 No tiktoken dependency — uses len(text.split()) as token proxy.
