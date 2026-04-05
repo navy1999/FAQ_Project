@@ -4,6 +4,7 @@ import { Message } from '../types';
 export function useConversation() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const isLoadingRef = useRef(false);
   const [systemInfo, setSystemInfo] = useState<{ mode: string; provider: string }>({ mode: 'Template', provider: 'none' });
   
   const sessionIdRef = useRef<string>('');
@@ -47,6 +48,7 @@ export function useConversation() {
     };
 
     setMessages(prev => [...prev, userMessage, assistantMessage]);
+    isLoadingRef.current = true;
     setIsLoading(true);
 
     try {
@@ -91,7 +93,8 @@ export function useConversation() {
               setMessages(prev => 
                 prev.map(m => m.id === tempId ? { ...m, content: currentContent } : m)
               );
-              if (currentContent.length > 0 && isLoading) {
+              if (currentContent.length > 0 && isLoadingRef.current) {
+                isLoadingRef.current = false;
                 setIsLoading(false);
               }
             } else if (payload.done) {
@@ -122,6 +125,7 @@ export function useConversation() {
         } : m)
       );
     } finally {
+      isLoadingRef.current = false;
       setIsLoading(false);
     }
   };
