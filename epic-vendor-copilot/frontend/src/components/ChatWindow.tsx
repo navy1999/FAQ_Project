@@ -3,7 +3,7 @@ import { useConversation } from '../hooks/useConversation';
 import { MessageBubble } from './MessageBubble';
 
 export function ChatWindow() {
-  const { messages, sendMessage, isLoading, clearSession } = useConversation();
+  const { messages, sendMessage, isLoading, clearSession, systemInfo } = useConversation();
   const [inputText, setInputText] = useState('');
   const endOfMessagesRef = useRef<HTMLDivElement>(null);
 
@@ -24,29 +24,42 @@ export function ChatWindow() {
     }
   };
 
+  const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant');
+  const tokensUsed = lastAssistantMsg?.tokenBudgetUsed ?? null;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <header style={{ padding: '16px', background: '#fff', borderBottom: '1px solid #ddd', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ margin: 0, fontSize: '1.2rem', color: '#00567a' }}>Epic Vendor Copilot</h1>
-        <button 
-          onClick={clearSession} 
-          style={{ padding: '8px 12px', background: '#f5f5f5', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}
-        >
-          Clear
+    <div className="chat-layout">
+      <header className="chat-header">
+        <div className="header-title-wrapper">
+          <h1 className="header-title">Epic Vendor Copilot</h1>
+          <span className="mode-badge">
+            {systemInfo.mode === 'llm' ? `LLM • ${systemInfo.provider}` : 'Template Mode'}
+          </span>
+        </div>
+        <button onClick={clearSession} className="clear-btn">
+          Clear Session
         </button>
       </header>
       
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div className="chat-body">
         {messages.length === 0 ? (
-          <div style={{ margin: 'auto', textAlign: 'center', color: '#666' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '16px' }}>💬</div>
-            <h2>Ask anything about Epic Vendor Services</h2>
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '24px', flexWrap: 'wrap' }}>
-              {["What is Vendor Services?", "How do I enroll?", "What APIs does Epic support?"].map(query => (
+          <div className="empty-state">
+            <div className="empty-svg-wrapper">
+              <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+            </div>
+            <h2>Epic Vendor Services</h2>
+            <div className="chip-container">
+              {["How do I enroll?", "What sandbox environments exist?", "Where are billing docs?"].map(query => (
                 <button 
                   key={query}
                   onClick={() => { setInputText(query); }}
-                  style={{ padding: '8px 16px', background: '#e0f2fe', color: '#0369a1', border: 'none', borderRadius: '16px', cursor: 'pointer' }}
+                  className="suggestion-chip"
                 >
                   {query}
                 </button>
@@ -58,43 +71,39 @@ export function ChatWindow() {
         )}
         
         {isLoading && (
-          <div style={{ alignSelf: 'flex-start', background: '#fff', padding: '12px', borderRadius: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.1)', color: '#666' }}>
-            <span style={{ animation: 'pulse 1.5s infinite' }}>●</span>
-            <span style={{ animation: 'pulse 1.5s infinite', animationDelay: '0.2s', margin: '0 4px' }}>●</span>
-            <span style={{ animation: 'pulse 1.5s infinite', animationDelay: '0.4s' }}>●</span>
+          <div className="typing-indicator">
+            <span>●</span>
+            <span>●</span>
+            <span>●</span>
           </div>
         )}
         <div ref={endOfMessagesRef} />
       </div>
 
-      <div style={{ padding: '16px', background: '#fff', borderTop: '1px solid #ddd' }}>
-        <div style={{ display: 'flex', gap: '8px', maxWidth: '800px', margin: '0 auto' }}>
+      <div className="chat-footer">
+        <div className="input-container">
           <textarea 
             value={inputText}
             onChange={e => setInputText(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={isLoading}
-            placeholder="Type your message..."
-            style={{ flex: 1, padding: '10px', borderRadius: '4px', border: '1px solid #ccc', resize: 'none', height: '44px', fontFamily: 'inherit' }}
+            placeholder="Ask a question..."
+            className="chat-input"
           />
           <button 
             onClick={handleSend}
             disabled={isLoading || !inputText.trim()}
-            style={{ padding: '0 20px', background: '#00567a', color: '#fff', border: 'none', borderRadius: '4px', cursor: inputText.trim() && !isLoading ? 'pointer' : 'not-allowed', opacity: isLoading || !inputText.trim() ? 0.7 : 1 }}
+            className="send-btn"
           >
             Send
           </button>
         </div>
+        {tokensUsed !== null && (
+          <div className="token-counter">
+            Tokens used for last response: {tokensUsed}
+          </div>
+        )}
       </div>
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 0.3; }
-          50% { opacity: 1; }
-        }
-        @keyframes blink {
-          50% { opacity: 0; }
-        }
-      `}</style>
     </div>
   );
 }

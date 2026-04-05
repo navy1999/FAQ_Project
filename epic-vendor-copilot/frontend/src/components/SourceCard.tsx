@@ -9,6 +9,7 @@ export function SourceCard({ source }: { source: SourceInfo }) {
   if (displayConf) {
     if (source.confidence! >= 0.75) confColor = '#2e7d32'; // green
     else if (source.confidence! >= 0.55) confColor = '#f57c00'; // amber
+    else confColor = '#c62828'; // red
   }
 
   const truncate = (text: string, len: number) => {
@@ -17,33 +18,23 @@ export function SourceCard({ source }: { source: SourceInfo }) {
   };
 
   return (
-    <div style={{
-      background: '#fafafa',
-      border: '1px solid #eaeaea',
-      borderRadius: '6px',
-      padding: '10px 14px',
-      fontSize: '0.9rem',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '4px'
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <strong style={{ color: '#555' }}>{source.section || 'General'}</strong>
-        <span style={{ 
-          color: confColor,
-          fontWeight: 'bold',
-          fontSize: '0.8rem',
-          background: '#fff',
-          padding: '2px 6px',
-          borderRadius: '4px',
-          border: `1px solid ${confColor}40`
-        }}>
-          {isRouted ? 'Routed' : confidencePercent}
+    <div className="source-card">
+      <div className="source-header">
+        <strong className="source-section">📄 {source.section || 'General'}</strong>
+        <span 
+          className="confidence-badge"
+          style={{ 
+            color: confColor,
+            borderColor: `${confColor}40`,
+            backgroundColor: `${confColor}10`
+          }}
+        >
+          {isRouted ? 'Routed' : `Confidence: ${confidencePercent}`}
         </span>
       </div>
       
       {source.question && (
-        <div style={{ color: '#333', fontStyle: 'italic' }}>
+        <div className="source-question">
           "{truncate(source.question, 60)}"
         </div>
       )}
@@ -53,15 +44,9 @@ export function SourceCard({ source }: { source: SourceInfo }) {
           href={source.url} 
           target="_blank" 
           rel="noopener noreferrer"
-          style={{
-            fontSize: '0.85rem',
-            color: '#0277bd',
-            textDecoration: 'none',
-            marginTop: '4px',
-            display: 'inline-block'
-          }}
+          className="source-link"
         >
-          View Source →
+          ● {source.url.replace(/^https?:\/\//, '').split('/')[0]}...
         </a>
       )}
     </div>

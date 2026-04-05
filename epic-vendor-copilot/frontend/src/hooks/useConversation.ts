@@ -1,15 +1,23 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Message } from '../types';
 
 export function useConversation() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [systemInfo, setSystemInfo] = useState<{ mode: string; provider: string }>({ mode: 'Template', provider: 'none' });
   
   const sessionIdRef = useRef<string>('');
   if (!sessionIdRef.current) {
     sessionIdRef.current = crypto.randomUUID();
   }
   const sessionId = sessionIdRef.current;
+
+  useEffect(() => {
+    fetch('/api/health')
+      .then(r => r.json())
+      .then(data => setSystemInfo({ mode: data.mode, provider: data.provider }))
+      .catch(() => {});
+  }, []);
 
   const sendMessage = async (text: string) => {
     const userMessage: Message = {
@@ -93,7 +101,9 @@ export function useConversation() {
                   memoryTurnRefs: payload.memory_turn_refs || [],
                   domainRoute: payload.domain_route || null,
                   clarificationNeeded: !!payload.clarification_needed,
-                  streaming: false
+                  streaming: false,
+                  tokenBudgetUsed: payload.token_budget_used,
+                  mode: payload.mode
                 } : m)
               );
             }
@@ -127,6 +137,7 @@ export function useConversation() {
     sendMessage,
     isLoading,
     sessionId,
-    clearSession
+    clearSession,
+    systemInfo
   };
 }

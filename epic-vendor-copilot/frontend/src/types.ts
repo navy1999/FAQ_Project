@@ -17,4 +17,6 @@ export type Message = {
   clarificationNeeded: boolean
   timestamp: number
   streaming?: boolean
+  tokenBudgetUsed?: number
+  mode?: string
 }
