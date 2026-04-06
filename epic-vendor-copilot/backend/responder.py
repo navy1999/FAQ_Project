@@ -196,7 +196,7 @@ def _template_synthesize(
 
 # ── LLM synthesis (MODE_B) ──────────────────────────────────────────────────
 
-def _llm_synthesize(
+async def _llm_synthesize(
     query: str,
     retrieval_result: dict,
     memory_context: list[dict],
@@ -213,7 +213,7 @@ def _llm_synthesize(
 
     # Build client — OpenRouter or OpenAI
     if _LLM_PROVIDER == "openrouter":
-        client = openai.OpenAI(
+        client = openai.AsyncOpenAI(
             api_key=_OPENROUTER_KEY,
             base_url=_OPENROUTER_BASE_URL,
             default_headers={
@@ -223,10 +223,10 @@ def _llm_synthesize(
         )
         model = _OPENROUTER_MODEL
     else:
-        client = openai.OpenAI(api_key=_OPENAI_KEY)
+        client = openai.AsyncOpenAI(api_key=_OPENAI_KEY)
         model = "gpt-4o-mini"
 
-    response = client.chat.completions.create(
+    response = await client.chat.completions.create(
         model=model,
         messages=[
             {"role": "system", "content": _SYSTEM_PERSONA},
@@ -257,7 +257,7 @@ def _llm_synthesize(
 
 # ── Public API ───────────────────────────────────────────────────────────────
 
-def synthesize(
+async def synthesize(
     query: str,
     retrieval_result: dict,
     memory: object | None = None,
@@ -287,7 +287,7 @@ def synthesize(
         memory_context = memory.recency_context()
 
     if MODE == "llm":
-        return _llm_synthesize(query, retrieval_result, memory_context, domain_route)
+        return await _llm_synthesize(query, retrieval_result, memory_context, domain_route)
     else:
         return _template_synthesize(query, retrieval_result, memory_context, domain_route)
 

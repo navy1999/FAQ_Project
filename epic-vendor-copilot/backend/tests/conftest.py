@@ -4,6 +4,16 @@ conftest.py
 Shared pytest fixtures for backend tests.
 """
 
+import sys
+import pathlib
+
+# Ensure the epic-vendor-copilot/ root is on sys.path so that
+# `from backend.X import Y` resolves correctly when pytest is
+# invoked from any directory.
+_ROOT = pathlib.Path(__file__).resolve().parents[2]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
 import json
 from pathlib import Path
 

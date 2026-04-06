@@ -66,8 +66,12 @@ _RULES = [
     {
         "route": "enrollment",
         "triggers": [
-            "enroll", "sign up", "register", "get access",
-            "i'm interested", "how to join",
+            "how to join vendor services",
+            "sign up for vendor services",
+            "register as a vendor",
+            "get vendor services access",
+            "i'm interested in joining",
+            "how do i become a vendor",
         ],
         "response": (
             "To enroll in Vendor Services, visit "

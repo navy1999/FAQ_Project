@@ -65,8 +65,8 @@ _INDEX.add(_embeddings)
 _BLOOM = BloomFilter(capacity=500, error_rate=0.01)
 
 def _tokenize_for_bloom(text: str) -> list[str]:
-    """Extract words longer than 4 characters, lowercased."""
-    return [w.lower() for w in re.findall(r"[a-zA-Z]+", text) if len(w) > 4]
+    """Extract words 3+ characters, lowercased. Preserves short domain acronyms."""
+    return [w.lower() for w in re.findall(r"[a-zA-Z]+", text) if len(w) >= 3]
 
 # Seed the Bloom filter with FAQ vocabulary
 for entry in _ENTRIES:
@@ -85,7 +85,8 @@ for entry in _ENTRIES:
 _BLOOM.add("sandbox")
 
 # Explicitly add common variant terms that may not appear exactly in the FAQ text
-for term in ["cost", "price", "fee", "sign", "join", "process", "enroll"]:
+for term in ["api", "phi", "fhir", "edi", "x12", "sftp", "mbi",
+          "cost", "price", "fee", "sign", "join", "process", "enroll"]:
     _BLOOM.add(term)
 
 _CACHE_STATS = {"hits": 0, "misses": 0, "size": 0}
