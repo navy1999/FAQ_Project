@@ -210,9 +210,9 @@ async def chat(req: ChatRequest):
 
     retrieved_ids = [r["id"] for r in retrieval_result.get("results", [])]
 
-    previously_used = memory.used_faq_ids()
-    overlapping_ids = previously_used & set(retrieved_ids)
-    memory_used = len(overlapping_ids) > 0
+    prior_turns = [t for t in memory.context_window() if t.role == "user"]
+    memory_used = len(prior_turns) > 0
+    memory_turn_refs_base = [t.turn_index for t in prior_turns]
 
     # Step 4: Record user turn FIRST so memory contains it for overlap check when generating response, but we already have our `memory_used` flag
     user_turn = Turn(
@@ -224,13 +224,7 @@ async def chat(req: ChatRequest):
     )
     memory.add(user_turn)
 
-    memory_turn_refs = []
-    if memory_used:
-        for turn in memory.context_window():
-            if turn.turn_index == current_turn_index:
-                continue  # skip current turn
-            if set(turn.retrieved_ids) & set(retrieved_ids):
-                memory_turn_refs.append(turn.turn_index)
+    memory_turn_refs = memory_turn_refs_base
 
     # Step 6: Synthesize response
     synth = synthesize(
@@ -333,9 +327,9 @@ async def chat_stream(req: ChatRequest):
 
     retrieved_ids = [r["id"] for r in retrieval_result.get("results", [])]
 
-    previously_used = memory.used_faq_ids()
-    overlapping_ids = previously_used & set(retrieved_ids)
-    memory_used = len(overlapping_ids) > 0
+    prior_turns = [t for t in memory.context_window() if t.role == "user"]
+    memory_used = len(prior_turns) > 0
+    memory_turn_refs_base = [t.turn_index for t in prior_turns]
 
     # Add user turn FIRST so memory is available
     user_turn_stream = Turn(
@@ -347,13 +341,7 @@ async def chat_stream(req: ChatRequest):
     )
     memory.add(user_turn_stream)
 
-    memory_turn_refs = []
-    if memory_used:
-        for turn in memory.context_window():
-            if turn.turn_index == current_turn_index:
-                continue
-            if set(turn.retrieved_ids) & set(retrieved_ids):
-                memory_turn_refs.append(turn.turn_index)
+    memory_turn_refs = memory_turn_refs_base
 
     # Step 4: Stream Synthesis Interception
     from backend.responder import synthesize_stream
