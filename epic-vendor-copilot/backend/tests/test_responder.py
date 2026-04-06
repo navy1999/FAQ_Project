@@ -31,7 +31,8 @@ from backend.memory import ConversationMemory, Turn
 class TestModeAValidResult:
     """MODE_A should return non-empty answer for valid retrieval results."""
 
-    def test_single_result(self):
+    @pytest.mark.asyncio
+    async def test_single_result(self):
         retrieval = {
             "results": [
                 {
@@ -47,14 +48,15 @@ class TestModeAValidResult:
             "domain_miss": False,
             "needs_clarification": False,
         }
-        result = synthesize("what is vendor services", retrieval)
+        result = await synthesize("what is vendor services", retrieval)
         assert result["answer"]
         assert len(result["answer"]) > 0
         assert result["mode"] == "template"
         assert result["clarification_needed"] is False
         assert "vs-1072" in result["source_ids"]
 
-    def test_multiple_results(self):
+    @pytest.mark.asyncio
+    async def test_multiple_results(self):
         retrieval = {
             "results": [
                 {
@@ -79,7 +81,7 @@ class TestModeAValidResult:
             "domain_miss": False,
             "needs_clarification": False,
         }
-        result = synthesize("tell me about vendor services", retrieval)
+        result = await synthesize("tell me about vendor services", retrieval)
         assert result["answer"]
         assert "1." in result["answer"]  # Numbered list
         assert result["mode"] == "template"
@@ -88,23 +90,25 @@ class TestModeAValidResult:
 class TestModeAClarification:
     """MODE_A should return clarification string for edge cases."""
 
-    def test_needs_clarification(self):
+    @pytest.mark.asyncio
+    async def test_needs_clarification(self):
         retrieval = {
             "results": [],
             "domain_miss": False,
             "needs_clarification": True,
         }
-        result = synthesize("something vague", retrieval)
+        result = await synthesize("something vague", retrieval)
         assert result["answer"] == _CLARIFICATION_RESPONSE
         assert result["clarification_needed"] is True
 
-    def test_domain_miss(self):
+    @pytest.mark.asyncio
+    async def test_domain_miss(self):
         retrieval = {
             "results": [],
             "domain_miss": True,
             "needs_clarification": False,
         }
-        result = synthesize("tell me about pizza", retrieval)
+        result = await synthesize("tell me about pizza", retrieval)
         assert result["answer"] == _CLARIFICATION_RESPONSE
         assert result["clarification_needed"] is True
 
@@ -172,7 +176,8 @@ class TestTokenCounter:
 class TestSynthesizeWithMemory:
     """Test synthesize works correctly with ConversationMemory."""
 
-    def test_with_memory_object(self):
+    @pytest.mark.asyncio
+    async def test_with_memory_object(self):
         mem = ConversationMemory()
         mem.add(Turn(role="user", content="previous question", turn_index=0))
         mem.add(Turn(role="assistant", content="previous answer", turn_index=1))
@@ -192,7 +197,7 @@ class TestSynthesizeWithMemory:
             "domain_miss": False,
             "needs_clarification": False,
         }
-        result = synthesize("what is vendor services", retrieval, memory=mem)
+        result = await synthesize("what is vendor services", retrieval, memory=mem)
         assert result["answer"]
         assert result["mode"] == "template"
 
@@ -269,10 +274,11 @@ class TestExtendedRubricResponder:
         prompt = build_prompt("query " * 2000, chunks, mem)
         assert _count_tokens(prompt) <= _TOKEN_BUDGET
 
-    def test_enable_thinking_false_in_extra_body(self, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_enable_thinking_false_in_extra_body(self, monkeypatch):
         """test_enable_thinking_false_in_extra_body: assert extra_body contains enable_thinking=False"""
         import backend.responder
-        from unittest.mock import MagicMock
+        from unittest.mock import MagicMock, AsyncMock
         
         # Create a mock openai module with OpenAI class
         mock_openai_module = MagicMock()
@@ -280,8 +286,8 @@ class TestExtendedRubricResponder:
         mock_response = MagicMock()
         mock_response.choices = [MagicMock(message=MagicMock(content="hello"))]
         mock_response.usage = MagicMock(prompt_tokens=1, completion_tokens=1, total_tokens=2)
-        mock_client.chat.completions.create.return_value = mock_response
-        mock_openai_module.OpenAI.return_value = mock_client
+        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_openai_module.AsyncOpenAI.return_value = mock_client
         
         monkeypatch.setattr(backend.responder, "openai", mock_openai_module, raising=False)
         monkeypatch.setattr(backend.responder, "_OPENAI_AVAILABLE", True)
@@ -289,7 +295,7 @@ class TestExtendedRubricResponder:
         monkeypatch.setattr(backend.responder, "_LLM_PROVIDER", "openai")
         monkeypatch.setattr(backend.responder, "_OPENAI_KEY", "test")
         
-        backend.responder._llm_synthesize("hi", {"results":[]}, [], None)
+        await backend.responder._llm_synthesize("hi", {"results":[]}, [], None)
         
         kwargs = mock_client.chat.completions.create.call_args.kwargs
         assert "extra_body" in kwargs

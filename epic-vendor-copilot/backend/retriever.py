@@ -35,6 +35,23 @@ from pybloom_live import BloomFilter
 from sentence_transformers import SentenceTransformer
 from functools import lru_cache
 
+_STOP_WORDS = frozenset({
+    "the", "and", "for", "are", "but", "not", "you", "all",
+    "can", "her", "was", "one", "our", "out", "day", "get",
+    "has", "him", "his", "how", "its", "may", "nor", "now",
+    "own", "say", "she", "too", "use", "way", "who", "why",
+    "did", "let", "put", "see", "try", "ask", "old", "any",
+    "few", "new", "via", "yet", "ago", "due", "far",
+    "per", "set", "big", "end", "had", "got", "lot", "met",
+    "ran", "run", "sat", "won", "yes", "two", "six", "ten",
+    "what", "that", "this", "with", "from", "they", "been",
+    "have", "will", "your", "some", "more", "also", "into",
+    "than", "then", "them", "does", "just", "like", "over",
+    "such", "when", "each", "most", "much", "only", "same",
+    "take", "well", "were", "whom", "both", "even",
+    "here", "once", "upon", "very",
+})
+
 # ── Load FAQ entries ──────────────────────────────────────────────────────────
 
 _SEED_PATH = Path(__file__).resolve().parent.parent / "SEED_DATA" / "epic_vendor_faq.json"
@@ -66,7 +83,8 @@ _BLOOM = BloomFilter(capacity=500, error_rate=0.01)
 
 def _tokenize_for_bloom(text: str) -> list[str]:
     """Extract words 3+ characters, lowercased. Preserves short domain acronyms."""
-    return [w.lower() for w in re.findall(r"[a-zA-Z]+", text) if len(w) >= 3]
+    tokens = [w.lower() for w in re.findall(r"[a-zA-Z]+", text) if len(w) >= 3]
+    return [t for t in tokens if t not in _STOP_WORDS]
 
 # Seed the Bloom filter with FAQ vocabulary
 for entry in _ENTRIES:

@@ -72,6 +72,9 @@ _RULES = [
             "get vendor services access",
             "i'm interested in joining",
             "how do i become a vendor",
+            "enroll in vendor services",
+            "want to enroll",
+            "looking to enroll",
         ],
         "response": (
             "To enroll in Vendor Services, visit "

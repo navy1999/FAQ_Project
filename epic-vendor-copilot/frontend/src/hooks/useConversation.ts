@@ -21,6 +21,7 @@ export function useConversation() {
   }, []);
 
   const sendMessage = async (text: string) => {
+    if (!text.trim()) return;
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
