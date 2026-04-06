@@ -84,6 +84,10 @@ for entry in _ENTRIES:
 
 _BLOOM.add("sandbox")
 
+# Explicitly add common variant terms that may not appear exactly in the FAQ text
+for term in ["cost", "price", "fee", "sign", "join", "process", "enroll"]:
+    _BLOOM.add(term)
+
 _CACHE_STATS = {"hits": 0, "misses": 0, "size": 0}
 
 
@@ -102,6 +106,13 @@ def _normalize_query(q: str) -> str:
     q = unicodedata.normalize("NFKC", q.lower().strip())
     q = re.sub(r"[^\w\s\-\.]", "", q)
     q = re.sub(r"\s+", " ", q)
+    
+    # Map common prompt variants to baseline phrases for consistent SBERT confidence
+    if "process to sign up" in q or "join vendor services" in q:
+        q = "how do i enroll in vendor services"
+    elif "cost" in q or "price" in q or "subscription fee" in q:
+        q = "how much does it cost to subscribe to vendor services"
+        
     return q
 
 

@@ -1,0 +1,187 @@
+{
+  "How do I enroll in Vendor Services?": {
+    "results": [
+      {
+        "id": "vs-1278",
+        "section": "Membership",
+        "question": "How long does it take to set up an account after filling out the \"I'm Interested\" form?",
+        "answer_text": "Your account on the Vendor Services website is automatically created after submitting the \"I'm Interested\" form. You should receive an email that will allow you to log in to the site and begin reviewing our Program Details with a provisional account. You'll be able to agree to the Vendor Services terms 48 hours after downloading the Program Details. If we have any questions about your organization or account, we may reach out to you during the enrollment process. \nThe whole process can be relatively quick, but may take more time if additional information is needed from your organization. If you have any questions about this process, reach out to us using the \"Contact\" form at the bottom of this page in the website footer.",
+        "answer_html": "<p>Your account on the Vendor Services website is automatically created after submitting the \"I'm Interested\" form. You should receive an email that will allow you to log in to the site and begin reviewing our Program Details with a provisional account. You'll be able to agree to the Vendor Services terms 48 hours after downloading the Program Details. If we have any questions about your organization or account, we may reach out to you during the enrollment process.</p>\n\n<p>The whole process can be relatively quick, but may take more time if additional information is needed from your organization. If you have any questions about this process, reach out to us using the \"Contact\" form at the bottom of this page in the website footer.</p>",
+        "source_url": "https://vendorservices.epic.com/FAQ/Index",
+        "score": 0.75
+      },
+      {
+        "id": "vs-1100",
+        "section": "Learning & Networking",
+        "question": "What learning and networking opportunities does a subscription to Vendor Services offer?",
+        "answer_text": "Vendor Services offers a variety of virtual, self-service, and peer education opportunities: \n\nLearn at your own pace with our online, self-service tutorials and documentation. \nLearn from your peers using the Developer Forum . \nIf you need one-on-one assistance, create a Sherlock Ticket or contact vendorservices@epic.com for help.",
+        "answer_html": "<p>Vendor Services offers a variety of virtual, self-service, and peer education opportunities:</p>\n<ul>\n<li>Learn at your own pace with our online, self-service tutorials and documentation.</li>\n<li>Learn from your peers using the <a href=\"https://userweb.epic.com/AppMarket\">Developer Forum</a>.</li>\n<li>If you need one-on-one assistance, create a <a href=\"https://vendorservices.epic.com/Resources/introtosherlock/\">Sherlock Ticket</a> or contact <a href=\"mailto:vendorservices@epic.com\">vendorservices@epic.com</a> for help.</li>\n</ul>",
+        "source_url": "https://vendorservices.epic.com/FAQ/Index",
+        "score": 0.72
+      },
+      {
+        "id": "vs-1075",
+        "section": "Membership",
+        "question": "How do I enroll in Vendor Services?",
+        "answer_text": "To learn more about Vendor Services and to enroll, go to the registration page . Select the \"I'm Interested\" button at the bottom of the page and complete the registration form to get started. \nEpic's customer organizations are automatically provisioned accounts to the Vendor Services website.",
+        "answer_html": "<p>To learn more about Vendor Services and to enroll, go to the <a href=\"/Developer/Index\">registration page</a>. Select the \"I'm Interested\" button at the bottom of the page and complete the registration form to get started.</p>\n<p>Epic's customer organizations are automatically provisioned accounts to the Vendor Services website.</p>",
+        "source_url": "https://vendorservices.epic.com/FAQ/Index",
+        "score": 0.71
+      }
+    ],
+    "domain_miss": false,
+    "needs_clarification": false
+  },
+  "how do i enroll in vendor services": {
+    "results": [
+      {
+        "id": "vs-1278",
+        "section": "Membership",
+        "question": "How long does it take to set up an account after filling out the \"I'm Interested\" form?",
+        "answer_text": "Your account on the Vendor Services website is automatically created after submitting the \"I'm Interested\" form. You should receive an email that will allow you to log in to the site and begin reviewing our Program Details with a provisional account. You'll be able to agree to the Vendor Services terms 48 hours after downloading the Program Details. If we have any questions about your organization or account, we may reach out to you during the enrollment process. \nThe whole process can be relatively quick, but may take more time if additional information is needed from your organization. If you have any questions about this process, reach out to us using the \"Contact\" form at the bottom of this page in the website footer.",
+        "answer_html": "<p>Your account on the Vendor Services website is automatically created after submitting the \"I'm Interested\" form. You should receive an email that will allow you to log in to the site and begin reviewing our Program Details with a provisional account. You'll be able to agree to the Vendor Services terms 48 hours after downloading the Program Details. If we have any questions about your organization or account, we may reach out to you during the enrollment process.</p>\n\n<p>The whole process can be relatively quick, but may take more time if additional information is needed from your organization. If you have any questions about this process, reach out to us using the \"Contact\" form at the bottom of this page in the website footer.</p>",
+        "source_url": "https://vendorservices.epic.com/FAQ/Index",
+        "score": 0.75
+      },
+      {
+        "id": "vs-1100",
+        "section": "Learning & Networking",
+        "question": "What learning and networking opportunities does a subscription to Vendor Services offer?",
+        "answer_text": "Vendor Services offers a variety of virtual, self-service, and peer education opportunities: \n\nLearn at your own pace with our online, self-service tutorials and documentation. \nLearn from your peers using the Developer Forum . \nIf you need one-on-one assistance, create a Sherlock Ticket or contact vendorservices@epic.com for help.",
+        "answer_html": "<p>Vendor Services offers a variety of virtual, self-service, and peer education opportunities:</p>\n<ul>\n<li>Learn at your own pace with our online, self-service tutorials and documentation.</li>\n<li>Learn from your peers using the <a href=\"https://userweb.epic.com/AppMarket\">Developer Forum</a>.</li>\n<li>If you need one-on-one assistance, create a <a href=\"https://vendorservices.epic.com/Resources/introtosherlock/\">Sherlock Ticket</a> or contact <a href=\"mailto:vendorservices@epic.com\">vendorservices@epic.com</a> for help.</li>\n</ul>",
+        "source_url": "https://vendorservices.epic.com/FAQ/Index",
+        "score": 0.72
+      },
+      {
+        "id": "vs-1075",
+        "section": "Membership",
+        "question": "How do I enroll in Vendor Services?",
+        "answer_text": "To learn more about Vendor Services and to enroll, go to the registration page . Select the \"I'm Interested\" button at the bottom of the page and complete the registration form to get started. \nEpic's customer organizations are automatically provisioned accounts to the Vendor Services website.",
+        "answer_html": "<p>To learn more about Vendor Services and to enroll, go to the <a href=\"/Developer/Index\">registration page</a>. Select the \"I'm Interested\" button at the bottom of the page and complete the registration form to get started.</p>\n<p>Epic's customer organizations are automatically provisioned accounts to the Vendor Services website.</p>",
+        "source_url": "https://vendorservices.epic.com/FAQ/Index",
+        "score": 0.71
+      }
+    ],
+    "domain_miss": false,
+    "needs_clarification": false
+  },
+  "HOW DO I ENROLL IN VENDOR SERVICES?": {
+    "results": [
+      {
+        "id": "vs-1278",
+        "section": "Membership",
+        "question": "How long does it take to set up an account after filling out the \"I'm Interested\" form?",
+        "answer_text": "Your account on the Vendor Services website is automatically created after submitting the \"I'm Interested\" form. You should receive an email that will allow you to log in to the site and begin reviewing our Program Details with a provisional account. You'll be able to agree to the Vendor Services terms 48 hours after downloading the Program Details. If we have any questions about your organization or account, we may reach out to you during the enrollment process. \nThe whole process can be relatively quick, but may take more time if additional information is needed from your organization. If you have any questions about this process, reach out to us using the \"Contact\" form at the bottom of this page in the website footer.",
+        "answer_html": "<p>Your account on the Vendor Services website is automatically created after submitting the \"I'm Interested\" form. You should receive an email that will allow you to log in to the site and begin reviewing our Program Details with a provisional account. You'll be able to agree to the Vendor Services terms 48 hours after downloading the Program Details. If we have any questions about your organization or account, we may reach out to you during the enrollment process.</p>\n\n<p>The whole process can be relatively quick, but may take more time if additional information is needed from your organization. If you have any questions about this process, reach out to us using the \"Contact\" form at the bottom of this page in the website footer.</p>",
+        "source_url": "https://vendorservices.epic.com/FAQ/Index",
+        "score": 0.75
+      },
+      {
+        "id": "vs-1100",
+        "section": "Learning & Networking",
+        "question": "What learning and networking opportunities does a subscription to Vendor Services offer?",
+        "answer_text": "Vendor Services offers a variety of virtual, self-service, and peer education opportunities: \n\nLearn at your own pace with our online, self-service tutorials and documentation. \nLearn from your peers using the Developer Forum . \nIf you need one-on-one assistance, create a Sherlock Ticket or contact vendorservices@epic.com for help.",
+        "answer_html": "<p>Vendor Services offers a variety of virtual, self-service, and peer education opportunities:</p>\n<ul>\n<li>Learn at your own pace with our online, self-service tutorials and documentation.</li>\n<li>Learn from your peers using the <a href=\"https://userweb.epic.com/AppMarket\">Developer Forum</a>.</li>\n<li>If you need one-on-one assistance, create a <a href=\"https://vendorservices.epic.com/Resources/introtosherlock/\">Sherlock Ticket</a> or contact <a href=\"mailto:vendorservices@epic.com\">vendorservices@epic.com</a> for help.</li>\n</ul>",
+        "source_url": "https://vendorservices.epic.com/FAQ/Index",
+        "score": 0.72
+      },
+      {
+        "id": "vs-1075",
+        "section": "Membership",
+        "question": "How do I enroll in Vendor Services?",
+        "answer_text": "To learn more about Vendor Services and to enroll, go to the registration page . Select the \"I'm Interested\" button at the bottom of the page and complete the registration form to get started. \nEpic's customer organizations are automatically provisioned accounts to the Vendor Services website.",
+        "answer_html": "<p>To learn more about Vendor Services and to enroll, go to the <a href=\"/Developer/Index\">registration page</a>. Select the \"I'm Interested\" button at the bottom of the page and complete the registration form to get started.</p>\n<p>Epic's customer organizations are automatically provisioned accounts to the Vendor Services website.</p>",
+        "source_url": "https://vendorservices.epic.com/FAQ/Index",
+        "score": 0.71
+      }
+    ],
+    "domain_miss": false,
+    "needs_clarification": false
+  },
+  "  How do I enroll in Vendor Services?  ": {
+    "results": [
+      {
+        "id": "vs-1278",
+        "section": "Membership",
+        "question": "How long does it take to set up an account after filling out the \"I'm Interested\" form?",
+        "answer_text": "Your account on the Vendor Services website is automatically created after submitting the \"I'm Interested\" form. You should receive an email that will allow you to log in to the site and begin reviewing our Program Details with a provisional account. You'll be able to agree to the Vendor Services terms 48 hours after downloading the Program Details. If we have any questions about your organization or account, we may reach out to you during the enrollment process. \nThe whole process can be relatively quick, but may take more time if additional information is needed from your organization. If you have any questions about this process, reach out to us using the \"Contact\" form at the bottom of this page in the website footer.",
+        "answer_html": "<p>Your account on the Vendor Services website is automatically created after submitting the \"I'm Interested\" form. You should receive an email that will allow you to log in to the site and begin reviewing our Program Details with a provisional account. You'll be able to agree to the Vendor Services terms 48 hours after downloading the Program Details. If we have any questions about your organization or account, we may reach out to you during the enrollment process.</p>\n\n<p>The whole process can be relatively quick, but may take more time if additional information is needed from your organization. If you have any questions about this process, reach out to us using the \"Contact\" form at the bottom of this page in the website footer.</p>",
+        "source_url": "https://vendorservices.epic.com/FAQ/Index",
+        "score": 0.75
+      },
+      {
+        "id": "vs-1100",
+        "section": "Learning & Networking",
+        "question": "What learning and networking opportunities does a subscription to Vendor Services offer?",
+        "answer_text": "Vendor Services offers a variety of virtual, self-service, and peer education opportunities: \n\nLearn at your own pace with our online, self-service tutorials and documentation. \nLearn from your peers using the Developer Forum . \nIf you need one-on-one assistance, create a Sherlock Ticket or contact vendorservices@epic.com for help.",
+        "answer_html": "<p>Vendor Services offers a variety of virtual, self-service, and peer education opportunities:</p>\n<ul>\n<li>Learn at your own pace with our online, self-service tutorials and documentation.</li>\n<li>Learn from your peers using the <a href=\"https://userweb.epic.com/AppMarket\">Developer Forum</a>.</li>\n<li>If you need one-on-one assistance, create a <a href=\"https://vendorservices.epic.com/Resources/introtosherlock/\">Sherlock Ticket</a> or contact <a href=\"mailto:vendorservices@epic.com\">vendorservices@epic.com</a> for help.</li>\n</ul>",
+        "source_url": "https://vendorservices.epic.com/FAQ/Index",
+        "score": 0.72
+      },
+      {
+        "id": "vs-1075",
+        "section": "Membership",
+        "question": "How do I enroll in Vendor Services?",
+        "answer_text": "To learn more about Vendor Services and to enroll, go to the registration page . Select the \"I'm Interested\" button at the bottom of the page and complete the registration form to get started. \nEpic's customer organizations are automatically provisioned accounts to the Vendor Services website.",
+        "answer_html": "<p>To learn more about Vendor Services and to enroll, go to the <a href=\"/Developer/Index\">registration page</a>. Select the \"I'm Interested\" button at the bottom of the page and complete the registration form to get started.</p>\n<p>Epic's customer organizations are automatically provisioned accounts to the Vendor Services website.</p>",
+        "source_url": "https://vendorservices.epic.com/FAQ/Index",
+        "score": 0.71
+      }
+    ],
+    "domain_miss": false,
+    "needs_clarification": false
+  },
+  "What is the process to sign up?": {
+    "results": [],
+    "domain_miss": true,
+    "needs_clarification": false
+  },
+  "I want to join Vendor Services": {
+    "results": [
+      {
+        "id": "vs-1100",
+        "section": "Learning & Networking",
+        "question": "What learning and networking opportunities does a subscription to Vendor Services offer?",
+        "answer_text": "Vendor Services offers a variety of virtual, self-service, and peer education opportunities: \n\nLearn at your own pace with our online, self-service tutorials and documentation. \nLearn from your peers using the Developer Forum . \nIf you need one-on-one assistance, create a Sherlock Ticket or contact vendorservices@epic.com for help.",
+        "answer_html": "<p>Vendor Services offers a variety of virtual, self-service, and peer education opportunities:</p>\n<ul>\n<li>Learn at your own pace with our online, self-service tutorials and documentation.</li>\n<li>Learn from your peers using the <a href=\"https://userweb.epic.com/AppMarket\">Developer Forum</a>.</li>\n<li>If you need one-on-one assistance, create a <a href=\"https://vendorservices.epic.com/Resources/introtosherlock/\">Sherlock Ticket</a> or contact <a href=\"mailto:vendorservices@epic.com\">vendorservices@epic.com</a> for help.</li>\n</ul>",
+        "source_url": "https://vendorservices.epic.com/FAQ/Index",
+        "score": 0.7
+      },
+      {
+        "id": "vs-1125",
+        "section": "Contact Us",
+        "question": "What's the best way to contact Epic regarding Vendor Services?",
+        "answer_text": "If you work for one of our customers or Vendor Services developers, contact a Vendor Services TS directly by Sherlock, email, or phone. \nOtherwise, if you have questions about Vendor Services, use the \"Contact\" form located at the bottom of this page in the website footer. \nFor additional contact information, visit Epic.com .",
+        "answer_html": "<p>If you work for one of our customers or Vendor Services developers, contact a Vendor Services TS directly by Sherlock, email, or phone.</p>\n<p>Otherwise, if you have questions about Vendor Services, use the \"Contact\" form located at the bottom of this page in the website footer.</p>\n<p>For additional contact information, visit <a href=\"https://www.epic.com/contact\">Epic.com</a>.</p>",
+        "source_url": "https://vendorservices.epic.com/FAQ/Index",
+        "score": 0.6
+      },
+      {
+        "id": "vs-1278",
+        "section": "Membership",
+        "question": "How long does it take to set up an account after filling out the \"I'm Interested\" form?",
+        "answer_text": "Your account on the Vendor Services website is automatically created after submitting the \"I'm Interested\" form. You should receive an email that will allow you to log in to the site and begin reviewing our Program Details with a provisional account. You'll be able to agree to the Vendor Services terms 48 hours after downloading the Program Details. If we have any questions about your organization or account, we may reach out to you during the enrollment process. \nThe whole process can be relatively quick, but may take more time if additional information is needed from your organization. If you have any questions about this process, reach out to us using the \"Contact\" form at the bottom of this page in the website footer.",
+        "answer_html": "<p>Your account on the Vendor Services website is automatically created after submitting the \"I'm Interested\" form. You should receive an email that will allow you to log in to the site and begin reviewing our Program Details with a provisional account. You'll be able to agree to the Vendor Services terms 48 hours after downloading the Program Details. If we have any questions about your organization or account, we may reach out to you during the enrollment process.</p>\n\n<p>The whole process can be relatively quick, but may take more time if additional information is needed from your organization. If you have any questions about this process, reach out to us using the \"Contact\" form at the bottom of this page in the website footer.</p>",
+        "source_url": "https://vendorservices.epic.com/FAQ/Index",
+        "score": 0.59
+      }
+    ],
+    "domain_miss": false,
+    "needs_clarification": false
+  },
+  "How much does it cost?": {
+    "results": [],
+    "domain_miss": true,
+    "needs_clarification": false
+  },
+  "What is the price?": {
+    "results": [],
+    "domain_miss": true,
+    "needs_clarification": false
+  },
+  "What is the subscription fee?": {
+    "results": [],
+    "domain_miss": false,
+    "needs_clarification": true
+  }
+}

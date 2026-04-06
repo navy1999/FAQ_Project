@@ -72,3 +72,25 @@ class TestIntegration:
         assert "memory" in data
         assert "uptime_seconds" in data
         assert data["status"] == "ok"
+
+    async def test_memory_used_is_true_on_second_turn(self, client):
+        """Turn 2 should detect memory overlap with turn 1's retrieved FAQ IDs."""
+        # Turn 1: ask about enrollment
+        r1 = await client.post("/chat", json={
+            "session_id": "mem-fix-test",
+            "message": "What is Vendor Services?"
+        })
+        assert r1.status_code == 200
+        d1 = r1.json()
+        assert d1["memory_used"] is False  # first turn, no prior context
+
+        # Turn 2: related follow-up in same session
+        r2 = await client.post("/chat", json={
+            "session_id": "mem-fix-test",
+            "message": "Can you explain Vendor Services again?"
+        })
+        assert r2.status_code == 200
+        d2 = r2.json()
+        assert d2["memory_used"] is True
+        assert isinstance(d2["memory_turn_refs"], list)
+        assert len(d2["memory_turn_refs"]) > 0

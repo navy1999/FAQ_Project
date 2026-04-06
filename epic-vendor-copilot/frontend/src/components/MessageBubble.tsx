@@ -22,7 +22,7 @@ export function MessageBubble({ message }: { message: Message }) {
       {!isUser && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {message.memoryUsed && <MemoryIndicator turnRefs={message.memoryTurnRefs} />}
-          {message.source && message.source.id && <SourceCard source={message.source} />}
+          {message.source && message.source.id && <SourceCard source={message.source} answerText={message.content} />}
         </div>
       )}
     </div>

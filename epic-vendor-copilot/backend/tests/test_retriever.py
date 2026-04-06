@@ -153,3 +153,65 @@ class TestNormalization:
         """'sandboxes' should not return domain_miss=True due to plural/singular fallback."""
         result = retrieve("sandboxes")
         assert result["domain_miss"] is False
+
+
+class TestQueryVariants:
+    """Test that various query phrasings for the same FAQ topic produce confident hits."""
+
+    # --- Enrollment variants ---
+    def test_enrollment_standard(self):
+        res = retrieve("How do I enroll in Vendor Services?")
+        assert res["domain_miss"] is False
+        assert res["needs_clarification"] is False
+
+    def test_enrollment_lowercase(self):
+        res = retrieve("how do i enroll in vendor services")
+        assert res["domain_miss"] is False
+        assert res["needs_clarification"] is False
+
+    def test_enrollment_uppercase(self):
+        res = retrieve("HOW DO I ENROLL IN VENDOR SERVICES?")
+        assert res["domain_miss"] is False
+        assert res["needs_clarification"] is False
+
+    def test_enrollment_extra_whitespace(self):
+        res = retrieve("  How do I enroll in Vendor Services?  ")
+        assert res["domain_miss"] is False
+        assert res["needs_clarification"] is False
+
+    def test_enrollment_paraphrase_signup(self):
+        res = retrieve("What is the process to sign up?")
+        assert res["domain_miss"] is False
+        assert res["needs_clarification"] is False
+
+    def test_enrollment_paraphrase_join(self):
+        res = retrieve("I want to join Vendor Services")
+        assert res["domain_miss"] is False
+        assert res["needs_clarification"] is False
+
+    # --- Cost variants ---
+    def test_cost_how_much(self):
+        res = retrieve("How much does it cost?")
+        assert res["domain_miss"] is False
+        assert res["needs_clarification"] is False
+
+    def test_cost_price(self):
+        res = retrieve("What is the price?")
+        assert res["domain_miss"] is False
+        assert res["needs_clarification"] is False
+
+    def test_cost_subscription_fee(self):
+        res = retrieve("What is the subscription fee?")
+        assert res["domain_miss"] is False
+        assert res["needs_clarification"] is False
+
+    # --- Password variants (domain rules, not retrieval) ---
+    def test_password_triggers_domain_rule(self):
+        from backend.domain_rules import check_domain_rules
+        result = check_domain_rules("I forgot my password")
+        assert result is not None
+
+    def test_credentials_triggers_domain_rule(self):
+        from backend.domain_rules import check_domain_rules
+        result = check_domain_rules("reset my credentials")
+        assert result is not None

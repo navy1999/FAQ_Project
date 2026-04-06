@@ -346,3 +346,53 @@ body {
 .source-link:hover {
   text-decoration: underline;
 }
+
+.source-peek-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 0.8rem;
+  color: var(--epic-teal);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.source-peek-btn:hover {
+  background: var(--epic-teal-light);
+  border-color: var(--epic-teal);
+}
+
+.source-peek-btn:focus-visible {
+  outline: 2px solid var(--epic-teal);
+  outline-offset: 2px;
+}
+
+.source-peek-panel {
+  margin-top: 8px;
+  padding: 12px 14px;
+  background: #f4fafb;
+  border: 1px solid rgba(0, 86, 122, 0.15);
+  border-radius: 6px;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; max-height: 0; }
+  to   { opacity: 1; max-height: 500px; }
+}
+
+.source-peek-heading {
+  margin: 0 0 8px 0;
+  font-size: 0.9rem;
+  color: var(--epic-teal);
+  font-weight: 600;
+}
+
+.source-peek-text {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.5;
+}

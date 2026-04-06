@@ -70,7 +70,7 @@ async def lifespan(app: FastAPI):
     print("[Startup] Warming retriever (SBERT model + FAISS index)...")
     _get_retriever()
     print(f"[Startup] Retriever ready. {_entries_count} FAQ entries loaded.")
-    print(f"[Startup] Response mode: {MODE}")
+    print(f"[Startup] Response mode: {MODE}" + (f" ({_LLM_PROVIDER})" if _LLM_PROVIDER else ""))
 
     # Start background eviction task
     evict_task = asyncio.create_task(_evict_stale_loop())
@@ -210,26 +210,11 @@ async def chat(req: ChatRequest):
 
     retrieved_ids = [r["id"] for r in retrieval_result.get("results", [])]
 
-    # Step 4: Memory overlap check
     previously_used = memory.used_faq_ids()
-    overlapping_ids = set(retrieved_ids) & previously_used
+    overlapping_ids = previously_used & set(retrieved_ids)
     memory_used = len(overlapping_ids) > 0
 
-    memory_turn_refs = []
-    if memory_used:
-        for turn in memory.context_window():
-            if set(turn.retrieved_ids) & overlapping_ids:
-                memory_turn_refs.append(turn.turn_index)
-
-    # Step 5: Synthesize response
-    synth = synthesize(
-        query=req.message,
-        retrieval_result=retrieval_result,
-        memory=memory,
-        domain_route=None,
-    )
-
-    # Step 6: Record turns
+    # Step 4: Record user turn FIRST so memory contains it for overlap check when generating response, but we already have our `memory_used` flag
     user_turn = Turn(
         role="user",
         content=req.message,
@@ -239,6 +224,23 @@ async def chat(req: ChatRequest):
     )
     memory.add(user_turn)
 
+    memory_turn_refs = []
+    if memory_used:
+        for turn in memory.context_window():
+            if turn.turn_index == current_turn_index:
+                continue  # skip current turn
+            if set(turn.retrieved_ids) & set(retrieved_ids):
+                memory_turn_refs.append(turn.turn_index)
+
+    # Step 6: Synthesize response
+    synth = synthesize(
+        query=req.message,
+        retrieval_result=retrieval_result,
+        memory=memory,
+        domain_route=None,
+    )
+
+    # Step 7: Record assistant turn
     assistant_turn = Turn(
         role="assistant",
         content=synth["answer"],
@@ -332,13 +334,25 @@ async def chat_stream(req: ChatRequest):
     retrieved_ids = [r["id"] for r in retrieval_result.get("results", [])]
 
     previously_used = memory.used_faq_ids()
-    overlapping_ids = set(retrieved_ids) & previously_used
+    overlapping_ids = previously_used & set(retrieved_ids)
     memory_used = len(overlapping_ids) > 0
+
+    # Add user turn FIRST so memory is available
+    user_turn_stream = Turn(
+        role="user",
+        content=req.message,
+        retrieved_ids=retrieved_ids,
+        turn_index=current_turn_index,
+        timestamp=time.time(),
+    )
+    memory.add(user_turn_stream)
 
     memory_turn_refs = []
     if memory_used:
         for turn in memory.context_window():
-            if set(turn.retrieved_ids) & overlapping_ids:
+            if turn.turn_index == current_turn_index:
+                continue
+            if set(turn.retrieved_ids) & set(retrieved_ids):
                 memory_turn_refs.append(turn.turn_index)
 
     # Step 4: Stream Synthesis Interception
@@ -378,15 +392,6 @@ async def chat_stream(req: ChatRequest):
                     yield f"data: {json.dumps(payload)}\n\n"
             except json.JSONDecodeError:
                 yield sse_message
-
-        user_turn = Turn(
-            role="user",
-            content=req.message,
-            retrieved_ids=retrieved_ids,
-            turn_index=current_turn_index,
-            timestamp=time.time(),
-        )
-        memory.add(user_turn)
 
         assistant_turn = Turn(
             role="assistant",
