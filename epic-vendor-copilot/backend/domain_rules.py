@@ -1,14 +1,53 @@
+from __future__ import annotations
 """
 domain_rules.py
 ---------------
 Pre-retrieval domain routing rules for Epic Vendor Services FAQ copilot.
 
 Implements check_domain_rules(query) which runs BEFORE any retrieval stage.
-Uses case-insensitive substring matching to detect queries that should be
-routed to a canned response instead of the retrieval pipeline.
+Uses a Trie-based prefix matching mechanism for O(k) keyword matching
+where k = query length. Routes matched queries to canned responses
+instead of the retrieval pipeline.
 
 No FastAPI imports — importable standalone.
 """
+
+
+class _TrieNode:
+    __slots__ = ("children", "route")
+    def __init__(self):
+        self.children: dict[str, "_TrieNode"] = {}
+        self.route: str | None = None
+
+
+class _DomainRuleTrie:
+    """
+    Trie for O(k) domain rule prefix matching where k = query length.
+    Scales to thousands of rules without per-query cost growth,
+    unlike O(n * k) linear substring search.
+    """
+    def __init__(self):
+        self.root = _TrieNode()
+
+    def insert(self, phrase: str, route: str) -> None:
+        node = self.root
+        for word in phrase.lower().split():
+            if word not in node.children:
+                node.children[word] = _TrieNode()
+            node = node.children[word]
+        node.route = route
+
+    def match(self, query: str) -> str | None:
+        words = query.lower().split()
+        for start in range(len(words)):
+            node = self.root
+            for word in words[start:]:
+                if word not in node.children:
+                    break
+                node = node.children[word]
+                if node.route:
+                    return node.route
+        return None
 
 
 _RULES = [
@@ -50,6 +89,15 @@ _RULES = [
     },
 ]
 
+# Build a lookup from route name -> response
+_RESPONSE_BY_ROUTE = {rule["route"]: rule["response"] for rule in _RULES}
+
+# Build the trie at module load time from existing ROUTING_RULES
+_trie = _DomainRuleTrie()
+for _rule in _RULES:
+    for _trigger in _rule["triggers"]:
+        _trie.insert(_trigger, _rule["route"])
+
 
 def check_domain_rules(query: str) -> dict | None:
     """
@@ -58,12 +106,10 @@ def check_domain_rules(query: str) -> dict | None:
     Returns {"route": str, "response": str} on the first match,
     or None if no rule matches.
 
-    Matching is case-insensitive substring search against the query.
+    Matching uses a Trie-based word-level prefix search against the query.
     Rules are evaluated in priority order: admin_escalation → enrollment → hipaa.
     """
-    query_lower = query.lower()
-    for rule in _RULES:
-        for trigger in rule["triggers"]:
-            if trigger in query_lower:
-                return {"route": rule["route"], "response": rule["response"]}
+    route = _trie.match(query)
+    if route is not None:
+        return {"route": route, "response": _RESPONSE_BY_ROUTE[route]}
     return None

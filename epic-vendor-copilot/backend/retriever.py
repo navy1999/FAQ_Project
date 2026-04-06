@@ -26,6 +26,7 @@ No FastAPI imports — importable standalone.
 
 import json
 import re
+import unicodedata
 from pathlib import Path
 
 import faiss
@@ -85,6 +86,25 @@ _BLOOM.add("sandbox")
 
 _CACHE_STATS = {"hits": 0, "misses": 0, "size": 0}
 
+
+def _normalize_query(q: str) -> str:
+    """
+    Normalize query text before embedding cache lookup.
+    Improves lru_cache hit rate by collapsing trivial variants:
+    - Unicode normalization (NFKC)
+    - Lowercase
+    - Strip leading/trailing whitespace
+    - Collapse internal whitespace runs
+    - Strip punctuation except hyphens (preserves 'SMART on FHIR',
+      'OAuth 2.0' style tokens)
+    O(n) where n = query length.
+    """
+    q = unicodedata.normalize("NFKC", q.lower().strip())
+    q = re.sub(r"[^\w\s\-\.]", "", q)
+    q = re.sub(r"\s+", " ", q)
+    return q
+
+
 @lru_cache(maxsize=128)
 def _encode_query_inner(query_text: str) -> np.ndarray:
     """Cache SBERT embeddings for repeated queries. O(1) cache hit."""
@@ -96,7 +116,7 @@ def _encode_query_inner(query_text: str) -> np.ndarray:
 
 def _encode_query(query_text: str) -> np.ndarray:
     prev_misses = _CACHE_STATS["misses"]
-    result = _encode_query_inner(query_text).copy()
+    result = _encode_query_inner(_normalize_query(query_text)).copy()
     if _CACHE_STATS["misses"] == prev_misses:
         _CACHE_STATS["hits"] += 1
     _CACHE_STATS["size"] = _encode_query_inner.cache_info().currsize
@@ -165,6 +185,9 @@ class BloomRetriever:
             "needs_clarification": bool
           }
         """
+        # Normalize query for Bloom tokenization consistency
+        query = _normalize_query(query)
+
         # Stage 1: Bloom filter domain guard
         if not self._check_bloom(query):
             return {

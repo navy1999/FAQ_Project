@@ -120,7 +120,10 @@ class TestSessionStoreEviction:
     def test_evict_stale_removes_old_sessions(self, session_store: SessionStore):
         # Create a session and manually backdate its timestamp
         mem = session_store.get_or_create("old-session")
-        session_store._store["old-session"] = (mem, time.time() - 3600)
+        old_time = time.time() - 3600
+        session_store._store["old-session"] = (mem, old_time)
+        # Also backdate the heap entry so heap-based eviction sees it
+        session_store._heap = [(old_time, "old-session")]
 
         # Create a fresh session
         session_store.get_or_create("new-session")
@@ -168,3 +171,33 @@ class TestToDict:
         assert d["used_faq_ids"] == ["vs-1"]
         assert d["turns"][0]["role"] == "user"
         assert d["turns"][0]["content"] == "Hello"
+
+
+class TestHeapEviction:
+    """Test min-heap based eviction in SessionStore."""
+
+    def test_heap_eviction_removes_expired_sessions(self):
+        store = SessionStore()
+        store.get_or_create("s1")
+        store.get_or_create("s2")
+        store.get_or_create("s3")
+        # Manually backdate all sessions in both _store and _heap
+        old_time = time.time() - 3600
+        for sid in ["s1", "s2", "s3"]:
+            mem = store._store[sid][0]
+            store._store[sid] = (mem, old_time)
+        import heapq
+        store._heap = []
+        for sid in ["s1", "s2", "s3"]:
+            heapq.heappush(store._heap, (old_time, sid))
+        evicted = store.evict_stale(1800)
+        assert evicted == 3
+        assert store.active_count() == 0
+
+    def test_heap_does_not_evict_fresh_sessions(self):
+        store = SessionStore()
+        store.get_or_create("fresh1")
+        store.get_or_create("fresh2")
+        evicted = store.evict_stale(1800)
+        assert evicted == 0
+        assert store.active_count() == 2

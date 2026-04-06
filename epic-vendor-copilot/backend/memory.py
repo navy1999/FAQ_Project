@@ -11,6 +11,7 @@ Provides:
 No FastAPI imports — importable standalone.
 """
 
+import heapq
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -102,11 +103,13 @@ class SessionStore:
 
     def __init__(self):
         self._store: dict[str, tuple[ConversationMemory, float]] = {}
+        self._heap: list[tuple[float, str]] = []
 
     def get_or_create(self, session_id: str) -> ConversationMemory:
         """Retrieve existing session memory or create a new one."""
         if session_id not in self._store:
             self._store[session_id] = (ConversationMemory(), time.time())
+            heapq.heappush(self._heap, (time.time(), session_id))
         else:
             self.touch(session_id)
         return self._store[session_id][0]
@@ -119,18 +122,27 @@ class SessionStore:
 
     def evict_stale(self, ttl_seconds: int = 1800) -> int:
         """
-        Remove sessions that have not been accessed within `ttl_seconds`.
-
-        Returns the number of sessions evicted.
+        Evict sessions not accessed within ttl_seconds.
+        Uses a min-heap keyed on creation time for O(k log n) eviction
+        where k = number of expired sessions, vs O(n) linear scan.
+        At current scale (32 FAQ entries, small concurrent user count)
+        this is equivalent, but documents the correct pattern for
+        horizontal scaling where session counts grow to O(10^4+).
         """
         now = time.time()
-        stale_ids = [
-            sid for sid, (_, last_access) in self._store.items()
-            if (now - last_access) > ttl_seconds
-        ]
-        for sid in stale_ids:
-            del self._store[sid]
-        return len(stale_ids)
+        cutoff = now - ttl_seconds
+        evicted = 0
+        while self._heap and self._heap[0][0] < cutoff:
+            _, sid = heapq.heappop(self._heap)
+            if sid in self._store:
+                _, last_access = self._store[sid]
+                if last_access < cutoff:
+                    del self._store[sid]
+                    evicted += 1
+                else:
+                    # Session was touched after heap entry; re-push
+                    heapq.heappush(self._heap, (last_access, sid))
+        return evicted
 
     def remove(self, session_id: str) -> bool:
         """Remove a specific session. Returns True if it existed."""

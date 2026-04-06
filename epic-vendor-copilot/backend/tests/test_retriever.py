@@ -128,3 +128,28 @@ class TestExtendedRubric:
         """a broad query returns up to 3 results"""
         res = retrieve("what is vendor services", top_k=3)
         assert 1 <= len(res["results"]) <= 3
+
+
+class TestNormalization:
+    """Tests for query normalization before LRU cache."""
+
+    def test_normalize_query_lowercases_and_collapses_whitespace(self):
+        from backend.retriever import _normalize_query
+        result = _normalize_query("  How  do I  LOG IN?  ")
+        assert result == "how do i log in"
+
+    def test_cache_hit_after_normalization(self):
+        from backend.retriever import _CACHE_STATS, _encode_query_inner
+        # Clear cache to get a clean baseline
+        _encode_query_inner.cache_clear()
+        _CACHE_STATS["hits"] = 0
+        _CACHE_STATS["misses"] = 0
+        retrieve("How do I enroll?")
+        hits_before = _CACHE_STATS["hits"]
+        retrieve("how do i enroll")
+        assert _CACHE_STATS["hits"] > hits_before
+
+    def test_bloom_singulars_and_plurals(self):
+        """'sandboxes' should not return domain_miss=True due to plural/singular fallback."""
+        result = retrieve("sandboxes")
+        assert result["domain_miss"] is False

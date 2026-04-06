@@ -35,3 +35,15 @@ def test_empty_string_returns_none():
     # Edge case: empty query should not match any rule
     result = check_domain_rules("")
     assert result is None
+
+
+class TestTrieMatching:
+    """Test Trie-based domain rule matching."""
+
+    def test_trie_matches_password_variants(self):
+        assert check_domain_rules("I forgot my password") is not None
+        assert check_domain_rules("reset my password please") is not None
+
+    def test_trie_does_not_match_unrelated(self):
+        assert check_domain_rules("What is FHIR?") is None
+        assert check_domain_rules("How much does it cost?") is None

@@ -35,3 +35,42 @@ fails — it does not run on confident retrievals, so there is zero latency
 cost on the happy path.
 
 This was added as an unprompted enhancement during implementation.
+
+## DSA Design Decisions
+
+### Heap-Based Session Eviction — O(k log n) vs O(n)
+
+`SessionStore.evict_stale()` uses a min-heap (`heapq`) keyed on session
+creation time. When evicting, we pop only the oldest entries until we reach
+a non-expired timestamp, giving O(k log n) where k = expired sessions.
+The previous linear scan was O(n) over all sessions. At current scale
+(small user count) both are equivalent, but the heap documents the correct
+pattern for horizontal scaling where session counts grow to O(10^4+).
+
+### Bloom Filter — Domain Guard, Not Speed Optimization
+
+The Bloom filter is NOT a performance optimization — FAISS `IndexFlatIP`
+search over 32 entries is already sub-millisecond. Instead it serves as a
+**domain guard** that immediately rejects queries with zero lexical overlap
+with the FAQ corpus, preventing low-confidence but non-zero FAISS results
+for completely unrelated topics (e.g., "tell me about pizza"). This is a
+deliberate design choice: we trade a small amount of memory (pybloom_live
+BloomFilter with capacity=500, error_rate=0.01) for deterministic rejection
+of clearly off-topic queries without semantic computation.
+
+### LRU Cache + Query Normalization — Cache Hit Rate
+
+The `_normalize_query()` function applies NFKC unicode normalization,
+lowercasing, whitespace collapsing, and punctuation stripping before the
+LRU cache lookup. This ensures that trivially different queries like
+`"How do I enroll?"` and `"how do i enroll"` map to the same cache key,
+improving the hit rate of the 128-entry LRU cache and avoiding redundant
+22ms SBERT forward passes for equivalent queries.
+
+### Trie-Based Domain Rule Matching — O(k) Prefix Match
+
+`check_domain_rules()` uses a word-level Trie built at module load time
+from the trigger phrases in `_RULES`. For each query, the Trie performs
+O(k) prefix matching where k = number of words in the query. This scales
+to thousands of routing rules without per-query cost growth, unlike the
+previous O(n × k) linear substring search over all triggers.

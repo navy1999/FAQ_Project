@@ -11,6 +11,12 @@ pip install -r requirements.txt
 # Optional: export OPENROUTER_API_KEY=sk-or-v1-...
 uvicorn backend.main:app --reload --port 8000
 ```
+
+> **First-run note:** `pip install` will download the
+> `all-MiniLM-L6-v2` sentence-transformers model (~80 MB) on
+> first startup. Subsequent starts are instant (model is cached
+> in `~/.cache/huggingface/`). Allow ~2–3 minutes on first run.
+
 New terminal:
 ```bash
 cd frontend && npm install && npm run dev
@@ -23,6 +29,9 @@ pytest backend/tests/ -v
 
 ## Architecture
 The application runs incoming questions through a **Bloom filter** acts as a fast domain guard rejecting clearly off-topic queries immediately. Valid queries proceed to **FAISS** for dense vector similarity retrieval using SBERT embeddings to locate the best FAQ matches. Any follow-up questions leverage semantic **memory** to retain context. If the raw query matches predefined security or routing keywords, **domain rules** instantly provide a deterministic answer. Finally, the gathered context is synthesized into a final response by either passing it through an **LLM** (if an OpenRouter key is configured) or by streaming a deterministic **template** response natively without needing an internet connection. 
+
+> See [DECISIONS.md](./DECISIONS.md) for full stack rationale,
+> DSA design decisions, and scope tradeoffs.
 
 ## Modes
 | Feature | Template Mode (no key) | LLM Mode (OPENROUTER_API_KEY set) |

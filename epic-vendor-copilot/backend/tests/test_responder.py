@@ -274,18 +274,20 @@ class TestExtendedRubricResponder:
         import backend.responder
         from unittest.mock import MagicMock
         
+        # Create a mock openai module with OpenAI class
+        mock_openai_module = MagicMock()
         mock_client = MagicMock()
         mock_response = MagicMock()
         mock_response.choices = [MagicMock(message=MagicMock(content="hello"))]
         mock_response.usage = MagicMock(prompt_tokens=1, completion_tokens=1, total_tokens=2)
         mock_client.chat.completions.create.return_value = mock_response
+        mock_openai_module.OpenAI.return_value = mock_client
         
-        mock_OpenAI = MagicMock(return_value=mock_client)
-        monkeypatch.setattr("backend.responder.openai.OpenAI", mock_OpenAI, raising=False)
-        monkeypatch.setattr("backend.responder._OPENAI_AVAILABLE", True)
-        monkeypatch.setattr("backend.responder.MODE", "llm")
-        monkeypatch.setattr("backend.responder._LLM_PROVIDER", "openai")
-        monkeypatch.setattr("backend.responder._OPENAI_KEY", "test")
+        monkeypatch.setattr(backend.responder, "openai", mock_openai_module, raising=False)
+        monkeypatch.setattr(backend.responder, "_OPENAI_AVAILABLE", True)
+        monkeypatch.setattr(backend.responder, "MODE", "llm")
+        monkeypatch.setattr(backend.responder, "_LLM_PROVIDER", "openai")
+        monkeypatch.setattr(backend.responder, "_OPENAI_KEY", "test")
         
         backend.responder._llm_synthesize("hi", {"results":[]}, [], None)
         

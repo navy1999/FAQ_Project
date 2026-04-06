@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 main.py
 -------
@@ -15,6 +17,7 @@ Single file. Uses lifespan events for startup/shutdown.
 import asyncio
 import time
 from contextlib import asynccontextmanager
+from typing import Optional
 
 import json
 from fastapi import FastAPI, HTTPException
@@ -118,11 +121,11 @@ class ChatRequest(BaseModel):
 
 
 class SourceResponse(BaseModel):
-    id: str | None = None
-    section: str | None = None
-    question: str | None = None
-    url: str | None = None
-    confidence: float | None = None
+    id: Optional[str] = None
+    section: Optional[str] = None
+    question: Optional[str] = None
+    url: Optional[str] = None
+    confidence: Optional[float] = None
 
 
 class ChatResponse(BaseModel):
@@ -130,7 +133,7 @@ class ChatResponse(BaseModel):
     source: SourceResponse
     memory_used: bool
     memory_turn_refs: list[int]
-    domain_route: str | None
+    domain_route: Optional[str]
     clarification_needed: bool
     mode: str  # "template" | "llm"
 
