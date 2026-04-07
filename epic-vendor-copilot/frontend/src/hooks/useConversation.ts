@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Message } from '../types';
+import { Message, ResponseType } from '../types';
 
 export function useConversation() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -14,14 +14,17 @@ export function useConversation() {
   const sessionId = sessionIdRef.current;
 
   useEffect(() => {
-    fetch('/api/health')
+    const controller = new AbortController();
+    fetch('/api/health', { signal: controller.signal })
       .then(r => r.json())
       .then(data => setSystemInfo({ mode: data.mode, provider: data.provider }))
       .catch(() => {});
+    return () => controller.abort();
   }, []);
 
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
+    
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -29,8 +32,7 @@ export function useConversation() {
       source: null,
       memoryUsed: false,
       memoryTurnRefs: [],
-      domainRoute: null,
-      clarificationNeeded: false,
+      responseType: "answer",
       timestamp: Date.now()
     };
 
@@ -42,8 +44,7 @@ export function useConversation() {
       source: null,
       memoryUsed: false,
       memoryTurnRefs: [],
-      domainRoute: null,
-      clarificationNeeded: false,
+      responseType: "answer",
       timestamp: Date.now(),
       streaming: true
     };
@@ -75,8 +76,8 @@ export function useConversation() {
         if (done) break;
         
         const chunkStr = decoder.decode(value, { stream: true });
-        // The chunk might contain multiple "data: {...}\n\n" lines
         const lines = chunkStr.split('\n');
+        
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             const dataStr = line.substring(6).trim();
@@ -106,8 +107,7 @@ export function useConversation() {
                   source: payload.source || null,
                   memoryUsed: !!payload.memory_used,
                   memoryTurnRefs: payload.memory_turn_refs || [],
-                  domainRoute: payload.domain_route || null,
-                  clarificationNeeded: !!payload.clarification_needed,
+                  responseType: (payload.response_type as ResponseType) || "answer",
                   streaming: false,
                   tokenBudgetUsed: payload.token_budget_used,
                   mode: payload.mode

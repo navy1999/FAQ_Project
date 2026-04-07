@@ -100,7 +100,15 @@ pytest backend/tests/ -v
 ```
 
 ## Architecture
-The application runs incoming questions through a **Bloom filter** that acts as a fast domain guard rejecting clearly off-topic queries immediately. Valid queries proceed to **FAISS** for dense vector similarity retrieval using SBERT embeddings to locate the best FAQ matches. Any follow-up questions leverage semantic **memory** to retain context. If the raw query matches predefined security or routing keywords, **domain rules** instantly provide a deterministic answer. Finally, the gathered context is synthesized into a final response by either passing it through an **LLM** (if an OpenRouter key is configured) or by streaming a deterministic **template** response natively without needing an internet connection. 
+The application evaluates incoming questions using **semantic score thresholding** powered by SBERT and FAISS. 
+
+1. **Retriever**: Queries are encoded using the `all-MiniLM-L6-v2` model.
+2. **Routing**: `main.py` applies a two-tier confidence gate:
+   - **Score < 0.45**: Immediate rejection as out-of-domain.
+   - **Score < 0.72**: Trigger a clarification request asking for more detail.
+   - **Score >= 0.72**: Processed as a confident match.
+3. **Synthesis**: Gathered FAQ context is then synthesized into a response via **LLM** (if an OpenRouter key is set) or a local deterministic **template** engine. 
+4. **Memory**: Short-term session memory allows the system to resolve follow-up questions (e.g., "how much?" after an enrollment question) by expanding vague queries with prior context when first-pass scores are low.
 
 > See [DECISIONS.md](./DECISIONS.md) for full stack rationale,
 > DSA design decisions, and scope tradeoffs.
@@ -114,8 +122,8 @@ The application runs incoming questions through a **Bloom filter** that acts as 
 
 ## Scope Tradeoffs
 - **Authentication**: No auth is implemented whatsoever to keep the application highly portable and localized.
-- **HIPAA Data**: Synthetic handling only. A specific domain rule instantly rejects inquiries asking to process or handle HIPAA data since this is a local sandbox tool.
-- **LLM Dependency**: Since standard usage is completely local/template-based to guarantee function offline, we accept the tradeoff that multi-source synthesis is slightly rigid compared to GPT-4o-mini, unless the fallback OpenAI key is exported.
+- **Privacy**: No PII/HIPAA data handling. The system is a sandbox tool for FAQ retrieval only.
+- **Local-First**: The application is designed to function 100% offline via template mode, accepting slightly less flexible phrasing in exchange for zero internet dependency.
 
 ## Seed Data
 To regenerate seed data from the live Epic Vendor Services FAQ:

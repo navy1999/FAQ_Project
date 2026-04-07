@@ -6,6 +6,8 @@ export type SourceInfo = {
   confidence: number | null
 }
 
+export type ResponseType = "answer" | "clarification" | "domain_miss";
+
 export type Message = {
   id: string
   role: "user" | "assistant"
@@ -13,8 +15,7 @@ export type Message = {
   source: SourceInfo | null
   memoryUsed: boolean
   memoryTurnRefs: number[]
-  domainRoute: string | null
-  clarificationNeeded: boolean
+  responseType: ResponseType
   timestamp: number
   streaming?: boolean
   tokenBudgetUsed?: number

@@ -97,7 +97,8 @@
             "pricing",
             "fees",
             "cost",
-            "money"
+            "money",
+            "billing"
           ],
           "source_url": "https://vendorservices.epic.com/FAQ/Index",
           "section": "Membership",

@@ -4,19 +4,17 @@ import { MemoryIndicator } from './MemoryIndicator';
 
 export function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === 'user';
-  const bubbleClass = `message-bubble ${isUser ? 'user' : 'assistant'} ${message.clarificationNeeded ? 'clarification-border' : ''}`;
+  
+  const isClarification = message.responseType === 'clarification';
+  const isDomainMiss = message.responseType === 'domain_miss';
+  
+  const bubbleClass = `message-bubble ${isUser ? 'user' : 'assistant'} ${isClarification ? 'clarification-border' : ''} ${isDomainMiss ? 'domain-miss' : ''}`;
 
   return (
     <div className={`message-wrapper ${isUser ? 'user' : 'assistant'}`}>
       <div className={bubbleClass}>
         {message.content}
         {message.streaming && <span className="cursor-blink">|</span>}
-
-        {message.domainRoute && (
-          <div className="domain-route-pill">
-            🔀 {message.domainRoute}
-          </div>
-        )}
       </div>
 
       {!isUser && (

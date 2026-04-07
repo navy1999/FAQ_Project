@@ -4,17 +4,13 @@ responder.py
 ------------
 Response synthesis for the Epic Vendor Services FAQ copilot.
 
+Architecture:
+  Synthesize answers based on FAQ context retrieved by retriever.py.
+  Precondition: top_score >= 0.72 and results non-empty. This is enforced by main.py.
+
 Modes:
-  MODE_A (template): Deterministic template-based synthesis — no API key needed.
-                     Streams word-by-word with 30ms delay for UX consistency.
-  MODE_B (llm):      OpenRouter (Qwen3 free tier) when OPENROUTER_API_KEY is set.
-                     Falls back to OpenAI if OPENAI_API_KEY is set instead.
-                     Uses AsyncOpenAI with stream=True and enable_thinking=False.
-
-Token budget: 800 tokens (whitespace-split approximation).
-No tiktoken dependency — uses len(text.split()) as token proxy.
-
-No FastAPI imports — importable standalone.
+  MODE_A (template): Deterministic template-based synthesis.
+  MODE_B (llm):      OpenRouter or OpenAI LLM synthesis.
 """
 
 import os
@@ -31,10 +27,10 @@ except ImportError:
 
 _OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 
-#Openrouter key and config
-_OPENROUTER_KEY=os.getenv("OPENROUTER_API_KEY")
-_OPENROUTER_BASE_URL="https://openrouter.ai/api/v1"
-_OPENROUTER_MODEL="qwen/qwen3.6-plus:free"
+# OpenRouter key and config
+_OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY")
+_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+_OPENROUTER_MODEL = "qwen/qwen3.6-plus:free"
 
 if _OPENROUTER_KEY and _OPENAI_AVAILABLE:
     MODE = "llm"
@@ -71,7 +67,6 @@ def build_prompt(
     query: str,
     retrieved_chunks: list[dict],
     memory_context: list[dict],
-    domain_route: str | None = None,
 ) -> str:
     """
     Build the full prompt for the LLM or for template reference.
@@ -81,17 +76,11 @@ def build_prompt(
       - Memory context (recency_context format)
       - Retrieved FAQ chunks (answer_text[:200] each)
       - User query
-      - Domain route hint (if any)
 
     Enforces a hard cap of 800 tokens. Truncates oldest memory turns first
     if over budget.
     """
     parts = [_SYSTEM_PERSONA, ""]
-
-    # Domain route hint
-    if domain_route:
-        parts.append(f"[Domain route detected: {domain_route}]")
-        parts.append("")
 
     # Retrieved FAQ context
     if retrieved_chunks:
@@ -138,43 +127,19 @@ def build_prompt(
 
 # ── Template synthesis (MODE_A) ──────────────────────────────────────────────
 
-_CLARIFICATION_RESPONSE = (
-    "I wasn't able to find an exact match for that in the "
-    "Epic Vendor Services FAQ. Could you rephrase your question? "
-    "I can help with topics like account access, APIs, sandboxes, "
-    "membership, and learning resources."
-)
-
-
 def _template_synthesize(
     query: str,
     retrieval_result: dict,
     memory_context: list[dict],
-    domain_route: str | None,
 ) -> dict:
     """
     MODE_A: Deterministic template-based response synthesis.
-
-    Rules:
-      - domain_miss or needs_clarification → clarification response
-      - 1 result → return answer_text directly
-      - 2-3 results → numbered list combining top answers
+    Precondition: top_score >= 0.72, results non-empty.
     """
     results = retrieval_result.get("results", [])
-    domain_miss = retrieval_result.get("domain_miss", False)
-    needs_clarification = retrieval_result.get("needs_clarification", False)
+    assert len(results) > 0, "Synthesize called with empty retrieval results"
 
-    if domain_miss or needs_clarification:
-        prompt = build_prompt(query, results, memory_context, domain_route)
-        return {
-            "answer": _CLARIFICATION_RESPONSE,
-            "mode": "template",
-            "source_ids": [r["id"] for r in results],
-            "clarification_needed": True,
-            "token_budget_used": _count_tokens(prompt),
-        }
-
-    prompt = build_prompt(query, results, memory_context, domain_route)
+    prompt = build_prompt(query, results, memory_context)
 
     if len(results) == 1:
         answer = results[0]["answer_text"]
@@ -189,7 +154,6 @@ def _template_synthesize(
         "answer": answer,
         "mode": "template",
         "source_ids": [r["id"] for r in results],
-        "clarification_needed": False,
         "token_budget_used": _count_tokens(prompt),
     }
 
@@ -200,16 +164,18 @@ async def _llm_synthesize(
     query: str,
     retrieval_result: dict,
     memory_context: list[dict],
-    domain_route: str | None,
 ) -> dict:
+    """
+    MODE_B: LLM-based response synthesis.
+    Precondition: top_score >= 0.72, results non-empty.
+    """
     results = retrieval_result.get("results", [])
-    needs_clarification = retrieval_result.get("needs_clarification", False)
-    domain_miss = retrieval_result.get("domain_miss", False)
+    assert len(results) > 0, "Synthesize called with empty retrieval results"
 
-    prompt = build_prompt(query, results, memory_context, domain_route)
+    prompt = build_prompt(query, results, memory_context)
 
     if not _OPENAI_AVAILABLE:
-        return _template_synthesize(query, retrieval_result, memory_context, domain_route)
+        return _template_synthesize(query, retrieval_result, memory_context)
 
     # Build client — OpenRouter or OpenAI
     if _LLM_PROVIDER == "openrouter":
@@ -217,8 +183,8 @@ async def _llm_synthesize(
             api_key=_OPENROUTER_KEY,
             base_url=_OPENROUTER_BASE_URL,
             default_headers={
-                "HTTP-Referer": "http://localhost:5173",   # required by OpenRouter
-                "X-Title": "Epic Vendor Copilot",          # shows in your OR dashboard
+                "HTTP-Referer": "http://localhost:5173",
+                "X-Title": "Epic Vendor Copilot",
             },
         )
         model = _OPENROUTER_MODEL
@@ -250,7 +216,6 @@ async def _llm_synthesize(
         "answer": answer,
         "mode": "llm",
         "source_ids": [r["id"] for r in results],
-        "clarification_needed": needs_clarification or domain_miss,
         "token_budget_used": _count_tokens(prompt),
     }
 
@@ -261,23 +226,21 @@ async def synthesize(
     query: str,
     retrieval_result: dict,
     memory: object | None = None,
-    domain_route: str | None = None,
 ) -> dict:
     """
     Synthesize a response to the user query.
+    Precondition: top_score >= 0.72, results non-empty.
 
     Args:
         query: The user's question
         retrieval_result: Output from retriever.retrieve()
-        memory: ConversationMemory instance (used for recency_context())
-        domain_route: Domain route string if query was pre-routed
+        memory: ConversationMemory instance
 
     Returns:
         {
             "answer": str,
             "mode": "template" | "llm",
             "source_ids": [str],
-            "clarification_needed": bool,
             "token_budget_used": int
         }
     """
@@ -287,9 +250,9 @@ async def synthesize(
         memory_context = memory.recency_context()
 
     if MODE == "llm":
-        return await _llm_synthesize(query, retrieval_result, memory_context, domain_route)
+        return await _llm_synthesize(query, retrieval_result, memory_context)
     else:
-        return _template_synthesize(query, retrieval_result, memory_context, domain_route)
+        return _template_synthesize(query, retrieval_result, memory_context)
 
 # ── Streaming API ────────────────────────────────────────────────────────────
 
@@ -297,10 +260,9 @@ async def _template_synthesize_streaming(
     query: str,
     retrieval_result: dict,
     memory_context: list[dict],
-    domain_route: str | None,
 ):
     # Get the complete deterministic answer
-    sync_result = _template_synthesize(query, retrieval_result, memory_context, domain_route)
+    sync_result = _template_synthesize(query, retrieval_result, memory_context)
     answer = sync_result["answer"]
     words = answer.split(" ")
     
@@ -311,8 +273,6 @@ async def _template_synthesize_streaming(
 
     final_payload = {
         "done": True,
-        "source_ids": sync_result["source_ids"],
-        "clarification_needed": sync_result["clarification_needed"],
         "mode": sync_result["mode"],
         "token_budget_used": sync_result["token_budget_used"]
     }
@@ -323,16 +283,14 @@ async def _llm_synthesize_streaming(
     query: str,
     retrieval_result: dict,
     memory_context: list[dict],
-    domain_route: str | None,
 ):
     results = retrieval_result.get("results", [])
-    needs_clarification = retrieval_result.get("needs_clarification", False)
-    domain_miss = retrieval_result.get("domain_miss", False)
+    assert len(results) > 0, "Synthesize called with empty retrieval results"
 
-    prompt = build_prompt(query, results, memory_context, domain_route)
+    prompt = build_prompt(query, results, memory_context)
 
     if not _OPENAI_AVAILABLE:
-        async for chunk in _template_synthesize_streaming(query, retrieval_result, memory_context, domain_route):
+        async for chunk in _template_synthesize_streaming(query, retrieval_result, memory_context):
             yield chunk
         return
 
@@ -374,8 +332,6 @@ async def _llm_synthesize_streaming(
 
     final_payload = {
         "done": True,
-        "source_ids": [r["id"] for r in results],
-        "clarification_needed": needs_clarification or domain_miss,
         "mode": "llm",
         "token_budget_used": _count_tokens(prompt)
     }
@@ -385,15 +341,18 @@ async def synthesize_stream(
     query: str,
     retrieval_result: dict,
     memory: object | None = None,
-    domain_route: str | None = None,
 ):
+    """
+    Synthesize a streaming response.
+    Precondition: top_score >= 0.72, results non-empty.
+    """
     memory_context = []
     if memory is not None and hasattr(memory, "recency_context"):
         memory_context = memory.recency_context()
 
     if MODE == "llm":
-        async for chunk in _llm_synthesize_streaming(query, retrieval_result, memory_context, domain_route):
+        async for chunk in _llm_synthesize_streaming(query, retrieval_result, memory_context):
             yield chunk
     else:
-        async for chunk in _template_synthesize_streaming(query, retrieval_result, memory_context, domain_route):
+        async for chunk in _template_synthesize_streaming(query, retrieval_result, memory_context):
             yield chunk

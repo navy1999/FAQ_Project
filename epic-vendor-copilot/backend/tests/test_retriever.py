@@ -4,111 +4,65 @@ test_retriever.py
 Unit tests for backend.retriever module.
 
 Tests:
-  - Known FAQ question returns score >= 0.55
-  - Off-domain query returns domain_miss=True
-  - Paraphrased enrollment query is NOT Bloom-rejected
-  - Vague partial query returns needs_clarification=True
+  - Known FAQ question returns high top_score (>= 0.72)
+  - Off-topic query returns low top_score (< 0.45)
+  - Broad query returns reasonable top_score (0.45 <= score < 0.72)
+  - Results are sorted by score descending
 
 All tests import retriever directly, no server needed.
 """
 
 import pytest
-
 from backend.retriever import retrieve
 
 
 class TestKnownFAQQuery:
-    """Known FAQ questions should return results with good confidence."""
+    """Known FAQ questions should return results with high confidence."""
 
     def test_what_is_vendor_services(self):
         result = retrieve("what is vendor services")
-        assert not result["domain_miss"]
+        assert result["top_score"] is not None
+        assert result["top_score"] >= 0.72
         assert len(result["results"]) > 0
-        assert result["results"][0]["score"] >= 0.55
 
     def test_returns_expected_fields(self):
         result = retrieve("what is vendor services")
+        assert "results" in result
+        assert "top_score" in result
+        
         first = result["results"][0]
         assert "id" in first
         assert "section" in first
         assert "question" in first
         assert "answer_text" in first
-        assert "answer_html" in first
         assert "source_url" in first
         assert "score" in first
 
 
-class TestDomainMiss:
-    """Completely off-domain queries should be caught by the Bloom filter."""
+class TestScoreClassification:
+    """Tests for semantic score classification based on new thresholds."""
 
-    def test_off_domain_returns_domain_miss(self):
+    def test_off_domain_low_score(self):
+        """Off-topic queries should return low scores."""
         result = retrieve("what is the capital of France")
-        assert result["domain_miss"] is True
-        assert result["results"] == []
+        # May return results, but top_score should be very low
+        assert result["top_score"] is None or result["top_score"] < 0.45
 
-    def test_pizza_is_off_domain(self):
+    def test_pizza_low_score(self):
         result = retrieve("tell me about pizza")
-        assert result["domain_miss"] is True
+        assert result["top_score"] is None or result["top_score"] < 0.45
+
+    def test_vague_query_mid_score(self):
+        """A vague query like 'billing' should return a mid-range score."""
+        result = retrieve("billing")
+        # 'billing' is in the FAQ, but query is vague. 
+        # We expect it to be in the clarification range [0.45, 0.72)
+        assert result["top_score"] is not None
+        assert 0.45 <= result["top_score"] < 0.72
 
 
-class TestParaphrasedQuery:
-    """Paraphrased enrollment queries should NOT be Bloom-rejected."""
-
-    def test_how_do_i_join_reaches_faiss(self):
-        """
-        A paraphrased enrollment query that contains FAQ vocabulary words
-        should NOT be Bloom-rejected. 'register' is a known FAQ keyword,
-        so 'how do I register' should reach the FAISS stage.
-        """
-        result = retrieve("how do I register to enroll")
-        # The key assertion is that Bloom didn't reject it
-        # (it reaches FAISS stage). Score may or may not pass threshold.
-        assert result["domain_miss"] is False
-
-
-class TestClarificationNeeded:
-    """Vague queries below confidence threshold should flag clarification."""
-
-    def test_vague_query_needs_clarification(self):
-        """
-        A very vague partial query like 'thing' should either be
-        domain_miss (Bloom rejection) or needs_clarification (low FAISS scores).
-        """
-        result = retrieve("thing")
-        # Either Bloom rejects it or FAISS returns low scores
-        assert result["domain_miss"] is True or result["needs_clarification"] is True
-
-    def test_ambiguous_single_word(self):
-        """A single ambiguous word should not return confident results."""
-        result = retrieve("stuff about things")
-        assert result["domain_miss"] is True or result["needs_clarification"] is True
-
-class TestPluralization:
-    """Test morphological variants (e.g., plurals) correctly bypass the Bloom Filter."""
-
-    def test_plural_vendors(self):
-        """'vendors' should hit 'vendor' and pass the Bloom check."""
-        result = retrieve("vendors")
-        # Should not be a domain_miss! It might need clarification depending on score, but PyBloom passes.
-        assert result["domain_miss"] is False
-
-class TestExtendedRubric:
-    """Explicitly answering the rubric requirement for test_retriever.py test cases."""
-    
-    def test_bloom_filter_miss(self):
-        """query with zero domain keywords returns domain_miss=True"""
-        res = retrieve("some completely random text that has nothing to do with anything")
-        assert res["domain_miss"] is True
-
-    def test_confidence_threshold(self):
-        """a gibberish query but passing bloom returns empty results (score < 0.55)"""
-        # "vendor" and "services" will pass bloom filter but make it gibberish enough to fail FAISS
-        res = retrieve("vendor vendor vendor xyzabc123 hello world services")
-        if res["domain_miss"]:
-            pass # acceptable
-        else:
-            assert res["needs_clarification"] is True
-            assert len(res["results"]) == 0
+class TestRetrieverLogic:
+    """General retriever functionality tests."""
 
     def test_top_k_ordering(self):
         """results are sorted by score descending"""
@@ -118,100 +72,61 @@ class TestExtendedRubric:
             for i in range(len(results) - 1):
                 assert results[i]["score"] >= results[i+1]["score"]
 
-    def test_known_query_hit(self):
-        """'what is vendor services' returns vs-1100 or similar as top result"""
+    def test_known_query_hit_id(self):
+        """'what is vendor services' returns vs-1100 as top result"""
         res = retrieve("what is vendor services")
         assert len(res["results"]) > 0
         assert res["results"][0]["id"] == "vs-1100"
 
-    def test_multi_result(self):
+    def test_multi_result_count(self):
         """a broad query returns up to 3 results"""
-        res = retrieve("what is vendor services", top_k=3)
+        res = retrieve("enrollment", top_k=3)
         assert 1 <= len(res["results"]) <= 3
 
 
 class TestNormalization:
-    """Tests for query normalization before LRU cache."""
+    """Tests for query normalization and caching."""
 
-    def test_normalize_query_lowercases_and_collapses_whitespace(self):
+    def test_normalize_query_logic(self):
         from backend.retriever import _normalize_query
         result = _normalize_query("  How  do I  LOG IN?  ")
         assert result == "how do i log in"
 
     def test_cache_hit_after_normalization(self):
         from backend.retriever import _CACHE_STATS, _encode_query_inner
-        # Clear cache to get a clean baseline
         _encode_query_inner.cache_clear()
         _CACHE_STATS["hits"] = 0
         _CACHE_STATS["misses"] = 0
+        
         retrieve("How do I enroll?")
         hits_before = _CACHE_STATS["hits"]
+        
         retrieve("how do i enroll")
         assert _CACHE_STATS["hits"] > hits_before
-
-    def test_bloom_singulars_and_plurals(self):
-        """'sandboxes' should not return domain_miss=True due to plural/singular fallback."""
-        result = retrieve("sandboxes")
-        assert result["domain_miss"] is False
 
 
 class TestQueryVariants:
     """Test that various query phrasings for the same FAQ topic produce confident hits."""
 
-    # --- Enrollment variants ---
-    def test_enrollment_standard(self):
-        res = retrieve("How do I enroll in Vendor Services?")
-        assert res["domain_miss"] is False
-        assert res["needs_clarification"] is False
+    def test_enrollment_variants(self):
+        variants = [
+            "How do I enroll in Vendor Services?",
+            "how do i enroll in vendor services",
+            "HOW DO I ENROLL IN VENDOR SERVICES?",
+            "  How do I enroll in Vendor Services?  ",
+            "What is the process to sign up?",
+            "I want to join Vendor Services"
+        ]
+        for v in variants:
+            res = retrieve(v)
+            assert res["top_score"] >= 0.72, f"Variant failed: {v} (score: {res['top_score']})"
 
-    def test_enrollment_lowercase(self):
-        res = retrieve("how do i enroll in vendor services")
-        assert res["domain_miss"] is False
-        assert res["needs_clarification"] is False
-
-    def test_enrollment_uppercase(self):
-        res = retrieve("HOW DO I ENROLL IN VENDOR SERVICES?")
-        assert res["domain_miss"] is False
-        assert res["needs_clarification"] is False
-
-    def test_enrollment_extra_whitespace(self):
-        res = retrieve("  How do I enroll in Vendor Services?  ")
-        assert res["domain_miss"] is False
-        assert res["needs_clarification"] is False
-
-    def test_enrollment_paraphrase_signup(self):
-        res = retrieve("What is the process to sign up?")
-        assert res["domain_miss"] is False
-        assert res["needs_clarification"] is False
-
-    def test_enrollment_paraphrase_join(self):
-        res = retrieve("I want to join Vendor Services")
-        assert res["domain_miss"] is False
-        assert res["needs_clarification"] is False
-
-    # --- Cost variants ---
-    def test_cost_how_much(self):
-        res = retrieve("How much does it cost?")
-        assert res["domain_miss"] is False
-        assert res["needs_clarification"] is False
-
-    def test_cost_price(self):
-        res = retrieve("What is the price?")
-        assert res["domain_miss"] is False
-        assert res["needs_clarification"] is False
-
-    def test_cost_subscription_fee(self):
-        res = retrieve("What is the subscription fee?")
-        assert res["domain_miss"] is False
-        assert res["needs_clarification"] is False
-
-    # --- Password variants (domain rules, not retrieval) ---
-    def test_password_triggers_domain_rule(self):
-        from backend.domain_rules import check_domain_rules
-        result = check_domain_rules("I forgot my password")
-        assert result is not None
-
-    def test_credentials_triggers_domain_rule(self):
-        from backend.domain_rules import check_domain_rules
-        result = check_domain_rules("reset my credentials")
-        assert result is not None
+    def test_cost_variants(self):
+        variants = [
+            "How much does it cost?",
+            "What is the price?",
+            "What is the subscription fee?"
+        ]
+        for v in variants:
+            res = retrieve(v)
+            assert res["top_score"] >= 0.72, f"Variant failed: {v} (score: {res['top_score']})"

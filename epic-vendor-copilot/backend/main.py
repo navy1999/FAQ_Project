@@ -17,19 +17,33 @@ Single file. Uses lifespan events for startup/shutdown.
 import asyncio
 import time
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Optional, Literal
 
 import json
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
+import nltk
+for _corpus in ("wordnet", "omw-1.4"):
+    try:
+        nltk.data.find(f"corpora/{_corpus}")
+    except LookupError:
+        nltk.download(_corpus, quiet=True)
 
-from backend.domain_rules import check_domain_rules
 from backend.memory import ConversationMemory, SessionStore, Turn
 from backend.responder import MODE, _LLM_PROVIDER, _OPENROUTER_MODEL, synthesize
 
 _STARTUP_TIME = time.time()
+
+DOMAIN_MISS_RESPONSE = (
+    "I can only answer questions about Epic Vendor Services. "
+    "For other topics, please visit vendorservices.epic.com."
+)
+CLARIFICATION_RESPONSE = (
+    "Could you clarify what you'd like to know about Epic Vendor Services? "
+    "For example, are you asking about enrollment, pricing, APIs, or something else?"
+)
 
 # ── Lazy-loaded retriever ────────────────────────────────────────────────────
 
@@ -134,14 +148,20 @@ class SourceResponse(BaseModel):
     confidence: Optional[float] = None
 
 
+ResponseType = Literal["answer", "clarification", "domain_miss"]
+
 class ChatResponse(BaseModel):
     answer: str
     source: SourceResponse
     memory_used: bool
     memory_turn_refs: list[int]
-    domain_route: Optional[str]
-    clarification_needed: bool
+    response_type: ResponseType
     mode: str  # "template" | "llm"
+
+
+def _is_valid_query(query: str) -> bool:
+    q = query.strip()
+    return 3 <= len(q) <= 500 and any(c.isalpha() for c in q)
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
@@ -149,58 +169,39 @@ class ChatResponse(BaseModel):
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest):
     """
-    Main chat endpoint. Processing order:
-    1. check_domain_rules()
-    2. If route matched → return canned response
-    3. retriever.retrieve()
-    4. Check memory for previously seen FAQ IDs
-    5. responder.synthesize()
-    6. Record turns in session memory
-    7. Return full response
+    Main chat endpoint. 
+    1. Validate query
+    2. Retrieve top matches
+    3. Route based on top_score threshold
+    4. Call synthesize if OK
     """
-    memory = session_store.get_or_create(req.session_id)
-    retriever = _get_retriever()
-
-    # Track turn index
-    current_turn_index = len(memory.context_window())
-
-    # Step 1: Domain rules check
-    route_result = check_domain_rules(req.message)
-
-    if route_result:
-        # Step 2: Routed response
-        user_turn = Turn(
-            role="user",
-            content=req.message,
-            retrieved_ids=[],
-            turn_index=current_turn_index,
-            timestamp=time.time(),
-        )
-        memory.add(user_turn)
-
-        assistant_turn = Turn(
-            role="assistant",
-            content=route_result["response"],
-            retrieved_ids=[],
-            turn_index=current_turn_index + 1,
-            timestamp=time.time(),
-        )
-        memory.add(assistant_turn)
-
+    if not _is_valid_query(req.message):
         return ChatResponse(
-            answer=route_result["response"],
+            answer="Please enter a valid question.",
             source=SourceResponse(),
             memory_used=False,
             memory_turn_refs=[],
-            domain_route=route_result["route"],
-            clarification_needed=False,
-            mode=MODE,
+            response_type="clarification",
+            mode="template"
         )
 
-    # Step 3: Retrieval
-    retrieval_result = retriever.retrieve(req.message)
+    memory = session_store.get_or_create(req.session_id)
+    retriever = _get_retriever()
+    current_turn_index = len(memory.context_window())
 
-    if retrieval_result.get("domain_miss") or retrieval_result.get("needs_clarification"):
+    # Step 1: Retrieval
+    retrieval_result = retriever.retrieve(req.message)
+    top_score = retrieval_result.get("top_score")
+
+    # Step 2: Routing logic
+    response_type: ResponseType = "answer"
+    answer = ""
+    
+    if top_score is None or top_score < 0.45:
+        response_type = "domain_miss"
+        answer = DOMAIN_MISS_RESPONSE
+    elif top_score < 0.72:
+        # Check memory expansion before committing to clarification
         context_window = memory.context_window()
         last_user_query = None
         for turn in reversed(context_window):
@@ -211,68 +212,62 @@ async def chat(req: ChatRequest):
         if last_user_query:
             expanded_query = f"{last_user_query} {req.message}"
             expanded_result = retriever.retrieve(expanded_query)
-            if not expanded_result.get("domain_miss") and not expanded_result.get("needs_clarification"):
+            ex_score = expanded_result.get("top_score")
+            if ex_score and ex_score >= 0.72:
                 retrieval_result = expanded_result
+                top_score = ex_score
+            else:
+                response_type = "clarification"
+                answer = CLARIFICATION_RESPONSE
+        else:
+            response_type = "clarification"
+            answer = CLARIFICATION_RESPONSE
 
+    # Step 3: Handle Non-Answer routes
+    if response_type != "answer":
+        user_turn = Turn(role="user", content=req.message, retrieved_ids=[], turn_index=current_turn_index, timestamp=time.time())
+        memory.add(user_turn)
+        assistant_turn = Turn(role="assistant", content=answer, retrieved_ids=[], turn_index=current_turn_index + 1, timestamp=time.time())
+        memory.add(assistant_turn)
+        
+        return ChatResponse(
+            answer=answer,
+            source=SourceResponse(),
+            memory_used=False,
+            memory_turn_refs=[],
+            response_type=response_type,
+            mode=MODE
+        )
+
+    # Step 4: Answer route
     retrieved_ids = [r["id"] for r in retrieval_result.get("results", [])]
-
-    prior_ids = memory.used_faq_ids()  # snapshot BEFORE adding this turn
+    prior_ids = memory.used_faq_ids()
     memory_used = bool(prior_ids & set(retrieved_ids))
-    memory_turn_refs_base = [
+    memory_turn_refs = [
         t.turn_index for t in memory.context_window()
         if t.role == "user" and any(fid in prior_ids for fid in t.retrieved_ids)
     ]
 
-    # Step 4: Record user turn FIRST so memory contains it for overlap check when generating response, but we already have our `memory_used` flag
-    user_turn = Turn(
-        role="user",
-        content=req.message,
-        retrieved_ids=retrieved_ids,
-        turn_index=current_turn_index,
-        timestamp=time.time(),
-    )
+    user_turn = Turn(role="user", content=req.message, retrieved_ids=retrieved_ids, turn_index=current_turn_index, timestamp=time.time())
     memory.add(user_turn)
 
-    memory_turn_refs = memory_turn_refs_base
-
-    # Step 6: Synthesize response
     synth = await synthesize(
         query=req.message,
         retrieval_result=retrieval_result,
-        memory=memory,
-        domain_route=None,
+        memory=memory
     )
 
-    # Step 7: Record assistant turn
-    assistant_turn = Turn(
-        role="assistant",
-        content=synth["answer"],
-        retrieved_ids=retrieved_ids,
-        turn_index=current_turn_index + 1,
-        timestamp=time.time(),
-    )
+    assistant_turn = Turn(role="assistant", content=synth["answer"], retrieved_ids=retrieved_ids, turn_index=current_turn_index + 1, timestamp=time.time())
     memory.add(assistant_turn)
 
-    # Step 7: Build response
-    source = SourceResponse()
-    if retrieval_result.get("results"):
-        top = retrieval_result["results"][0]
-        source = SourceResponse(
-            id=top["id"],
-            section=top["section"],
-            question=top["question"],
-            url=top["source_url"],
-            confidence=top["score"],
-        )
-
+    top = retrieval_result["results"][0]
     return ChatResponse(
         answer=synth["answer"],
-        source=source,
+        source=SourceResponse(id=top["id"], section=top["section"], question=top["question"], url=top["source_url"], confidence=top["score"]),
         memory_used=memory_used,
         memory_turn_refs=memory_turn_refs,
-        domain_route=None,
-        clarification_needed=synth["clarification_needed"],
-        mode=synth["mode"],
+        response_type="answer",
+        mode=synth["mode"]
     )
 
 
@@ -280,47 +275,29 @@ async def chat(req: ChatRequest):
 async def chat_stream(req: ChatRequest):
     """
     Streaming version of the chat endpoint.
-    Returns SSE stream with data: {"chunk": "..."} and finally data: {"done": true, ...}.
     """
+    if not _is_valid_query(req.message):
+        async def err_stream():
+            yield f'data: {json.dumps({"chunk": "Please enter a valid question."})}\n\n'
+            yield f'data: {json.dumps({"done": True, "response_type": "clarification", "mode": "template", "source": None})}\n\n'
+        return StreamingResponse(err_stream(), media_type="text/event-stream")
+
     memory = session_store.get_or_create(req.session_id)
     retriever = _get_retriever()
     current_turn_index = len(memory.context_window())
 
-    # Step 1: Domain rules check
-    route_result = check_domain_rules(req.message)
-
-    if route_result:
-        async def mock_stream():
-            words = route_result["response"].split(" ")
-            assistant_content = ""
-            for i, word in enumerate(words):
-                chunk = word + (" " if i < len(words) - 1 else "")
-                assistant_content += chunk
-                yield f'data: {json.dumps({"chunk": chunk})}\n\n'
-                await asyncio.sleep(0.03)
-            
-            final_payload = {
-                "done": True,
-                "source": None,
-                "memory_used": False,
-                "memory_turn_refs": [],
-                "domain_route": route_result["route"],
-                "clarification_needed": False,
-                "mode": MODE
-            }
-            yield f'data: {json.dumps(final_payload)}\n\n'
-
-            user_turn = Turn(role="user", content=req.message, retrieved_ids=[], turn_index=current_turn_index, timestamp=time.time())
-            memory.add(user_turn)
-            assistant_turn = Turn(role="assistant", content=assistant_content, retrieved_ids=[], turn_index=current_turn_index + 1, timestamp=time.time())
-            memory.add(assistant_turn)
-
-        return StreamingResponse(mock_stream(), media_type="text/event-stream")
-
-    # Step 3: Retrieval
+    # Step 1: Retrieval
     retrieval_result = retriever.retrieve(req.message)
+    top_score = retrieval_result.get("top_score")
 
-    if retrieval_result.get("domain_miss") or retrieval_result.get("needs_clarification"):
+    # Step 2: Routing logic
+    response_type: ResponseType = "answer"
+    answer = ""
+    
+    if top_score is None or top_score < 0.45:
+        response_type = "domain_miss"
+        answer = DOMAIN_MISS_RESPONSE
+    elif top_score < 0.72:
         context_window = memory.context_window()
         last_user_query = None
         for turn in reversed(context_window):
@@ -331,31 +308,46 @@ async def chat_stream(req: ChatRequest):
         if last_user_query:
             expanded_query = f"{last_user_query} {req.message}"
             expanded_result = retriever.retrieve(expanded_query)
-            if not expanded_result.get("domain_miss") and not expanded_result.get("needs_clarification"):
+            ex_score = expanded_result.get("top_score")
+            if ex_score and ex_score >= 0.72:
                 retrieval_result = expanded_result
+                top_score = ex_score
+            else:
+                response_type = "clarification"
+                answer = CLARIFICATION_RESPONSE
+        else:
+            response_type = "clarification"
+            answer = CLARIFICATION_RESPONSE
 
+    # Step 3: Handle Non-Answer routes (Canned responses)
+    if response_type != "answer":
+        async def canned_stream():
+            words = answer.split(" ")
+            content = ""
+            for i, word in enumerate(words):
+                chunk = word + (" " if i < len(words) - 1 else "")
+                content += chunk
+                yield f'data: {json.dumps({"chunk": chunk})}\n\n'
+                await asyncio.sleep(0.03)
+            
+            yield f'data: {json.dumps({"done": True, "response_type": response_type, "mode": "template", "source": None, "memory_used": False, "memory_turn_refs": []})}\n\n'
+            
+            memory.add(Turn(role="user", content=req.message, retrieved_ids=[], turn_index=current_turn_index, timestamp=time.time()))
+            memory.add(Turn(role="assistant", content=content, retrieved_ids=[], turn_index=current_turn_index + 1, timestamp=time.time()))
+
+        return StreamingResponse(canned_stream(), media_type="text/event-stream")
+
+    # Step 4: Answer route (Streaming Synthesis)
     retrieved_ids = [r["id"] for r in retrieval_result.get("results", [])]
-
-    prior_ids = memory.used_faq_ids()  # snapshot BEFORE adding this turn
+    prior_ids = memory.used_faq_ids()
     memory_used = bool(prior_ids & set(retrieved_ids))
-    memory_turn_refs_base = [
+    memory_turn_refs = [
         t.turn_index for t in memory.context_window()
         if t.role == "user" and any(fid in prior_ids for fid in t.retrieved_ids)
     ]
 
-    # Add user turn FIRST so memory is available
-    user_turn_stream = Turn(
-        role="user",
-        content=req.message,
-        retrieved_ids=retrieved_ids,
-        turn_index=current_turn_index,
-        timestamp=time.time(),
-    )
-    memory.add(user_turn_stream)
+    memory.add(Turn(role="user", content=req.message, retrieved_ids=retrieved_ids, turn_index=current_turn_index, timestamp=time.time()))
 
-    memory_turn_refs = memory_turn_refs_base
-
-    # Step 4: Stream Synthesis Interception
     from backend.responder import synthesize_stream
 
     async def response_generator():
@@ -363,8 +355,7 @@ async def chat_stream(req: ChatRequest):
         stream_gen = synthesize_stream(
             query=req.message,
             retrieval_result=retrieval_result,
-            memory=memory,
-            domain_route=None,
+            memory=memory
         )
 
         async for sse_message in stream_gen:
@@ -377,30 +368,23 @@ async def chat_stream(req: ChatRequest):
                     assistant_content += payload["chunk"]
                     yield sse_message
                 elif "done" in payload:
+                    payload["response_type"] = "answer"
                     payload["memory_used"] = memory_used
                     payload["memory_turn_refs"] = memory_turn_refs
-                    source = None
-                    if retrieval_result.get("results"):
-                        top = retrieval_result["results"][0]
-                        source = {
-                            "id": top["id"], "section": top["section"], "question": top["question"],
-                            "url": top["source_url"], "confidence": top["score"]
-                        }
-                    payload["source"] = source
+                    top = retrieval_result["results"][0]
+                    payload["source"] = {
+                        "id": top["id"], "section": top["section"], "question": top["question"],
+                        "url": top["source_url"], "confidence": top["score"]
+                    }
+                    if "clarification_needed" in payload:
+                        del payload["clarification_needed"]
                     if "source_ids" in payload:
                         del payload["source_ids"]
                     yield f"data: {json.dumps(payload)}\n\n"
             except json.JSONDecodeError:
                 yield sse_message
 
-        assistant_turn = Turn(
-            role="assistant",
-            content=assistant_content,
-            retrieved_ids=retrieved_ids,
-            turn_index=current_turn_index + 1,
-            timestamp=time.time(),
-        )
-        memory.add(assistant_turn)
+        memory.add(Turn(role="assistant", content=assistant_content, retrieved_ids=retrieved_ids, turn_index=current_turn_index + 1, timestamp=time.time()))
 
     return StreamingResponse(response_generator(), media_type="text/event-stream")
 
@@ -428,7 +412,7 @@ async def health():
         "provider": _LLM_PROVIDER or "none",
         "model": _OPENROUTER_MODEL if MODE == "llm" else "n/a",
         "retriever": {
-            "type": "bloom+faiss",
+            "type": "semantic-faiss",
             "index_size": _entries_count,
             "embedding_model": "all-MiniLM-L6-v2"
         },
