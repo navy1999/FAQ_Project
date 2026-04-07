@@ -292,10 +292,10 @@ class TestExtendedRubricResponder:
         monkeypatch.setattr(backend.responder, "openai", mock_openai_module, raising=False)
         monkeypatch.setattr(backend.responder, "_OPENAI_AVAILABLE", True)
         monkeypatch.setattr(backend.responder, "MODE", "llm")
-        monkeypatch.setattr(backend.responder, "_LLM_PROVIDER", "openai")
+        monkeypatch.setattr(backend.responder, "_LLM_PROVIDER", "openrouter")
         monkeypatch.setattr(backend.responder, "_OPENAI_KEY", "test")
         
-        await backend.responder._llm_synthesize("hi", {"results":[]}, [], None)
+        await backend.responder._llm_synthesize("hi", {"results":[{"id":"dummy","answer_text":"dummy"}]}, [])
         
         kwargs = mock_client.chat.completions.create.call_args.kwargs
         assert "extra_body" in kwargs

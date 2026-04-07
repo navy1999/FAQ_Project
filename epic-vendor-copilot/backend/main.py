@@ -220,7 +220,7 @@ async def chat(req: ChatRequest):
                 response_type = "clarification"
                 answer = CLARIFICATION_RESPONSE
         else:
-            # If no prior context, try synonym-expanded retrieval before giving up
+            # First-turn fallback: try domain-boosted query before giving up
             domain_boosted = f"Epic Vendor Services {req.message}"
             boosted_result = retriever.retrieve(domain_boosted)
             b_score = boosted_result.get("top_score")
@@ -334,7 +334,7 @@ async def chat_stream(req: ChatRequest):
                 response_type = "clarification"
                 answer = CLARIFICATION_RESPONSE
         else:
-            # If no prior context, try synonym-expanded retrieval before giving up
+            # First-turn fallback: try domain-boosted query before giving up
             domain_boosted = f"Epic Vendor Services {req.message}"
             boosted_result = retriever.retrieve(domain_boosted)
             b_score = boosted_result.get("top_score")

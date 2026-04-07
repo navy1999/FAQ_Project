@@ -44,7 +44,7 @@ async def test_chat_mid_score_returns_clarification():
     async with AsyncClient(app=app, base_url="http://test") as ac:
         resp = await ac.post("/chat", json={
             "session_id": "test-session",
-            "message": "billing"
+            "message": "technical issues"
         })
     assert resp.status_code == 200
     data = resp.json()

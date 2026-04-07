@@ -1,14 +1,42 @@
+# Python
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# Virtual environments
 .venv/
 venv/
-node_modules/
-dist/
+env/
+ENV/
+
+# Environment
 .env
-.DS_Store
-*.egg-info/
+.env.*
+
+# Testing / coverage
 .pytest_cache/
 .coverage
-*.txt
-*.json
+htmlcov/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+dist/
+.next/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# FAISS cache (regenerated on startup)
+*.index

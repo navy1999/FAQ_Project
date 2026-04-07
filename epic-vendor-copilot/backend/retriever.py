@@ -195,6 +195,8 @@ class FAQRetriever:
                 seen_ids[eid] = r
         results = list(seen_ids.values())
         results.sort(key=lambda x: x["score"], reverse=True)
+        if results:
+            top_score = results[0]["score"]
 
         domain_miss         = top_score is None or top_score < SCORE_DOMAIN_MISS
         needs_clarification = (
