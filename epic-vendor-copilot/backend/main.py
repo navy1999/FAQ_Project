@@ -33,6 +33,7 @@ for _corpus in ("wordnet", "omw-1.4"):
 
 from backend.memory import ConversationMemory, SessionStore, Turn
 from backend.responder import MODE, _LLM_PROVIDER, _OPENROUTER_MODEL, synthesize
+from backend.domain_rules import check_domain_rules
 
 _STARTUP_TIME = time.time()
 
@@ -186,6 +187,28 @@ async def chat(req: ChatRequest):
         )
 
     memory = session_store.get_or_create(req.session_id)
+
+    # Pre-retrieval domain guard
+    _pre_action = check_domain_rules(req.message)
+    if _pre_action == "vague":
+        return ChatResponse(
+            answer=CLARIFICATION_RESPONSE,
+            source=SourceResponse(),
+            memory_used=False,
+            memory_turn_refs=[],
+            response_type="clarification",
+            mode="template"
+        )
+    elif _pre_action == "ood_hard_block":
+        return ChatResponse(
+            answer=DOMAIN_MISS_RESPONSE,
+            source=SourceResponse(),
+            memory_used=False,
+            memory_turn_refs=[],
+            response_type="domain_miss",
+            mode="template"
+        )
+
     retriever = _get_retriever()
     current_turn_index = len(memory.context_window())
 
@@ -200,7 +223,7 @@ async def chat(req: ChatRequest):
     if top_score is None or top_score < 0.45:
         response_type = "domain_miss"
         answer = DOMAIN_MISS_RESPONSE
-    elif top_score < 0.72:
+    elif top_score < 0.65:
         # Check memory expansion before committing to clarification
         context_window = memory.context_window()
         last_user_query = None
@@ -209,22 +232,23 @@ async def chat(req: ChatRequest):
                 last_user_query = turn.content
                 break
         
-        if last_user_query:
+        if last_user_query and len(req.message.split()) <= 4:
             expanded_query = f"{last_user_query} {req.message}"
             expanded_result = retriever.retrieve(expanded_query)
             ex_score = expanded_result.get("top_score")
-            if ex_score and ex_score >= 0.72:
+            if ex_score and ex_score >= 0.65:
                 retrieval_result = expanded_result
                 top_score = ex_score
             else:
                 response_type = "clarification"
                 answer = CLARIFICATION_RESPONSE
         else:
+            # Self-contained query that scored low → clarify, don't memory-expand
             # First-turn fallback: try domain-boosted query before giving up
             domain_boosted = f"Epic Vendor Services {req.message}"
             boosted_result = retriever.retrieve(domain_boosted)
             b_score = boosted_result.get("top_score")
-            if b_score and b_score >= 0.72:
+            if b_score and b_score >= 0.65:
                 retrieval_result = boosted_result
                 top_score = b_score
             else:
@@ -301,6 +325,32 @@ async def chat_stream(req: ChatRequest):
         return StreamingResponse(err_stream(), media_type="text/event-stream")
 
     memory = session_store.get_or_create(req.session_id)
+
+    # Pre-retrieval domain guard
+    _pre_action = check_domain_rules(req.message)
+    if _pre_action == "vague":
+        async def vague_stream():
+            words = CLARIFICATION_RESPONSE.split(" ")
+            content = ""
+            for i, word in enumerate(words):
+                chunk = word + (" " if i < len(words) - 1 else "")
+                content += chunk
+                yield f'data: {json.dumps({"chunk": chunk})}\n\n'
+                await asyncio.sleep(0.03)
+            yield f'data: {json.dumps({"done": True, "response_type": "clarification", "mode": "template", "source": None, "memory_used": False, "memory_turn_refs": []})}\n\n'
+        return StreamingResponse(vague_stream(), media_type="text/event-stream")
+    elif _pre_action == "ood_hard_block":
+        async def ood_stream():
+            words = DOMAIN_MISS_RESPONSE.split(" ")
+            content = ""
+            for i, word in enumerate(words):
+                chunk = word + (" " if i < len(words) - 1 else "")
+                content += chunk
+                yield f'data: {json.dumps({"chunk": chunk})}\n\n'
+                await asyncio.sleep(0.03)
+            yield f'data: {json.dumps({"done": True, "response_type": "domain_miss", "mode": "template", "source": None, "memory_used": False, "memory_turn_refs": []})}\n\n'
+        return StreamingResponse(ood_stream(), media_type="text/event-stream")
+
     retriever = _get_retriever()
     current_turn_index = len(memory.context_window())
 
@@ -315,7 +365,7 @@ async def chat_stream(req: ChatRequest):
     if top_score is None or top_score < 0.45:
         response_type = "domain_miss"
         answer = DOMAIN_MISS_RESPONSE
-    elif top_score < 0.72:
+    elif top_score < 0.65:
         context_window = memory.context_window()
         last_user_query = None
         for turn in reversed(context_window):
@@ -323,22 +373,23 @@ async def chat_stream(req: ChatRequest):
                 last_user_query = turn.content
                 break
         
-        if last_user_query:
+        if last_user_query and len(req.message.split()) <= 4:
             expanded_query = f"{last_user_query} {req.message}"
             expanded_result = retriever.retrieve(expanded_query)
             ex_score = expanded_result.get("top_score")
-            if ex_score and ex_score >= 0.72:
+            if ex_score and ex_score >= 0.65:
                 retrieval_result = expanded_result
                 top_score = ex_score
             else:
                 response_type = "clarification"
                 answer = CLARIFICATION_RESPONSE
         else:
+            # Self-contained query that scored low → clarify, don't memory-expand
             # First-turn fallback: try domain-boosted query before giving up
             domain_boosted = f"Epic Vendor Services {req.message}"
             boosted_result = retriever.retrieve(domain_boosted)
             b_score = boosted_result.get("top_score")
-            if b_score and b_score >= 0.72:
+            if b_score and b_score >= 0.65:
                 retrieval_result = boosted_result
                 top_score = b_score
             else:

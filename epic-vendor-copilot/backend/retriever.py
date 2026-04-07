@@ -36,7 +36,7 @@ from nltk.corpus import wordnet as _wordnet
 # ── Threshold constants ───────────────────────────────────────────────────────
 
 SCORE_DOMAIN_MISS   = 0.45   # below this -> domain miss
-SCORE_CLARIFICATION = 0.72   # below this (but >= DOMAIN_MISS) -> clarification
+SCORE_CLARIFICATION = 0.65   # below this (but >= DOMAIN_MISS) -> clarification
 
 
 def _get_wordnet_synonyms(term: str) -> list[str]:

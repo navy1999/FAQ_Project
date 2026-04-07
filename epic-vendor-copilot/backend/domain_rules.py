@@ -122,6 +122,19 @@ class _Trie:
         return None
 
 
+VAGUE_QUERIES: frozenset[str] = frozenset({
+    "help", "info", "hi", "hello", "hey", "yes", "no", "ok",
+    "okay", "sure", "tell me more", "more info", "go on",
+    "continue", "what else", "more", "next", "thanks",
+})
+
+_OOD_HARD_BLOCK: tuple[str, ...] = (
+    "stock price", "weather", "recipe", "cook", "movie", "film",
+    "translate", "translation", "sports score", "super bowl",
+    "nfl", "nba", "stock market", "cryptocurrency", "bitcoin",
+    "poem", "joke", "news headlines", "horoscope",
+)
+
 # ── Keyword table ─────────────────────────────────────────────────────────────
 #
 # Format: (phrase, action)
@@ -225,6 +238,17 @@ def check_domain_rules(query: str) -> Optional[str]:
     "boundary"         Decline politely; topic is out of scope (HIPAA etc.).
     None               No rule matched; proceed to FAISS semantic retrieval.
     """
+    q_lower = query.strip().lower()
+
+    # Guard 1: vague single-word or known vague phrase → clarify
+    tokens_preview = q_lower.split()
+    if q_lower in VAGUE_QUERIES or (len(tokens_preview) <= 1 and len(q_lower) <= 5):
+        return "vague"
+
+    # Guard 2: hard OOD patterns → domain_miss
+    if any(pattern in q_lower for pattern in _OOD_HARD_BLOCK):
+        return "ood_hard_block"
+
     tokens = _normalise(query)
     if not tokens:
         return None
