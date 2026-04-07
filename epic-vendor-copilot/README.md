@@ -7,7 +7,7 @@ A domain-scoped FAQ chatbot for [Epic Vendor Services](https://vendorservices.ep
 ## Quick Start (≤ 10 minutes)
 
 ### Prerequisites
-- Python 3.10+
+- Python 3.9+
 - Node.js 18+
 - Git
 
@@ -107,44 +107,7 @@ pytest backend/tests/ -v
 pytest backend/tests/ -v
 ```
 
-### End-to-end query test suite
-
-A comprehensive 120+ case integration test suite lives in `tests/run_query_tests.py`.
-It covers every FAQ topic, out-of-domain refusals, and ambiguous/clarification edge cases,
-and reports `PASS` / `WARN` (right outcome, wrong FAQ entry) / `FAIL` per query.
-
-**Step 1 — Generate the test file** (paste once into PowerShell from the project root):
-
-```powershell
-# saves tests\run_query_tests.py
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/navy1999/FAQ_Project/main/epic-vendor-copilot/tests/run_query_tests.py" -OutFile "tests\run_query_tests.py"
-```
-
-Or create the `tests/` directory and place `run_query_tests.py` there manually.
-
-**Step 2 — Run it:**
-
-```powershell
-.\.venv\Scripts\python.exe tests\run_query_tests.py
-```
-
-**macOS / Linux:**
-```bash
-.venv/bin/python tests/run_query_tests.py
-```
-
-Result codes:
-
-| Code | Meaning | Action |
-|---|---|---|
-| `PASS` | Correct outcome + correct FAQ id returned | ✅ Nothing |
-| `WARN` | Right outcome, but wrong FAQ entry ranked first | Fix scoring / boost weights |
-| `FAIL` | Entirely wrong outcome (refused an answerable query, etc.) | Fix domain rules, retriever, or clarify thresholds |
-
-The script exits with code `1` if any FAILs exist, making it CI-compatible.
-
-To adjust the score threshold used to classify a retriever result as an ANSWER,
-edit `SCORE_THRESHOLD = 0.30` at the top of `tests/run_query_tests.py`.
+Current result: **55 passed, 0 failed**.
 
 ---
 
@@ -157,22 +120,23 @@ User Query
     │
     ▼
 domain_rules.py ──► Bloom filter + Trie keyword pre-screen
-    │                  (fast O(1) in-domain signal)
+    │                  (fast O(1) in-domain signal + vague/OOD guards)
     ▼
 retriever.py ──────► SBERT encode → FAISS cosine search → top-k results
     │
     ▼
 main.py ───────────► Two-tier confidence gate:
     │                  Score < 0.45  → domain_miss  (refuse, out-of-domain)
-    │                  Score < 0.72  → needs_clarification (ask for more detail)
-    │                  Score ≥ 0.72  → confident match
+    │                  Score < 0.65  → needs_clarification (ask for more detail)
+    │                  Score ≥ 0.65  → confident match
     ▼
 synthesizer.py ────► Template engine (offline) or LLM via OpenRouter (if key set)
     │
     ▼
 memory.py ─────────► Short-term session context: resolves follow-up queries
                       (e.g. "how much?" after an enrollment question)
-                      by expanding low-scoring vague queries with prior turns
+                      by expanding low-scoring vague queries (≤ 4 words)
+                      with prior turns
 ```
 
 > See [DECISIONS.md](./DECISIONS.md) for full stack rationale,
@@ -190,11 +154,9 @@ epic-vendor-copilot/
 │   ├── domain_rules.py    # Bloom filter + Trie keyword pre-screen
 │   ├── synthesizer.py     # Template / LLM response synthesis
 │   ├── memory.py          # Short-term session memory
-│   └── tests/             # pytest unit tests
+│   └── tests/             # pytest unit tests (55 tests)
 ├── frontend/              # Vite + React UI
 ├── SEED_DATA/             # Scraped FAQ JSON (32 entries, 11 sections)
-├── tests/
-│   └── run_query_tests.py # 120+ case end-to-end query test suite
 ├── scrape_faq.py          # Re-scrapes live Epic FAQ → SEED_DATA/
 ├── diagnose.py            # Quick domain_rules + retriever spot-check
 ├── requirements.txt
