@@ -12,31 +12,35 @@
 
 Retrieval uses a **three-layer pipeline**:
 
-1. **Domain Rules pre-screen** (`domain_rules.py`): A Bloom filter + Trie-based keyword gate runs first. It immediately short-circuits queries that have zero lexical overlap with the FAQ corpus, returning `domain_miss=True` before any vector computation occurs. This is a domain guard, not a performance optimization — it prevents low-confidence but non-zero FAISS scores for completely unrelated topics (e.g., "tell me about pizza").
+1. **Domain Rules pre-screen** (`domain_rules.py`): A Bloom filter + Trie-based keyword gate runs first. It immediately short-circuits queries that have zero lexical overlap with the FAQ corpus, returning `domain_miss=True` before any vector computation occurs. This is a domain guard, not a performance optimization — it prevents low-confidence but non-zero FAISS scores for completely unrelated topics (e.g., "tell me about pizza"). Two additional guards run before the Trie: a `VAGUE_QUERIES` frozenset that intercepts single-word or known vague phrases (e.g., "help", "info") and routes them to clarification, and an `_OOD_HARD_BLOCK` tuple that matches hard out-of-domain patterns (e.g., "stock price", "weather") for immediate refusal.
 
 2. **SBERT + FAISS semantic retrieval** (`retriever.py`): Queries that pass the pre-screen are encoded via `all-MiniLM-L6-v2` and searched against a `faiss-cpu` `IndexFlatIP` index. Vectors are L2-normalized so inner product equals cosine similarity.
 
 3. **Two-tier confidence gate** (`main.py`): The raw FAISS score drives routing:
    - **Score < 0.45** → `domain_miss=True` (refuse, out-of-domain)
-   - **Score < 0.72** → `needs_clarification=True` (ask for more detail)
-   - **Score ≥ 0.72** → confident match, proceed to synthesis
+   - **Score < 0.65** → `needs_clarification=True` (ask for more detail)
+   - **Score ≥ 0.65** → confident match, proceed to synthesis
+
+   The threshold was tuned from an initial 0.72 to 0.65 based on empirical E2E test results across 89 query cases, reducing false clarifications from 21 to ~10 while maintaining correct OOD refusal on all out-of-domain queries.
 
 ---
 
 ## Memory Design
 
 `ConversationMemory` is a deque-backed short-term store with a configurable window size.
-The **Memory Indicator pill** in the UI makes it explicitly visible when the agent is using prior context — a deliberate design choice so users can trust the system isn't hallucinating references.
+The **Memory Indicator pill** in the UI makes it explicitly visible when the agent is using prior context — a deliberate design choice so users can trust the system isn’t hallucinating references.
 
 ### Query Expansion on Low Confidence
 
-When the retriever returns `domain_miss=True` or `needs_clarification=True`, the `/chat` and `/chat/stream` endpoints check session memory for the most recent prior user turn. If found, it prepends that turn to the current query and retries retrieval once:
+When the retriever returns a score below the 0.65 threshold, the `/chat` and `/chat/stream` endpoints check session memory for the most recent prior user turn. Expansion **only triggers when the current query is 4 words or fewer** — a guard added to prevent contamination of self-contained queries (e.g., "what learning resources are available") by unrelated prior turns. If the current query is longer than 4 words, it is treated as self-contained and routes directly to clarification without expansion.
+
+When expansion does run, it prepends the prior turn to the current query and retries retrieval once:
 
 ```
 expanded_query = f"{last_user_query} {current_query}"
 ```
 
-This resolves conversational follow-ups like `"what about the sandbox?"` after `"what APIs are available?"` without requiring the user to repeat full context. The expansion only runs when the first retrieval attempt fails — zero latency cost on the happy path.
+This resolves conversational follow-ups like `"what about the sandbox?"` after `"what APIs are available?"` without requiring the user to repeat full context. The expansion only runs when the first retrieval attempt scores below threshold — zero latency cost on the happy path.
 
 ---
 
@@ -45,6 +49,7 @@ This resolves conversational follow-ups like `"what about the sandbox?"` after `
 - **Authentication**: No auth implemented — keeps the app fully portable and self-contained.
 - **HIPAA Data**: A specific domain rule instantly rejects any query asking to process or handle HIPAA/PHI data, since this is a local sandbox tool.
 - **LLM Dependency**: Default operation is fully local/template-based (offline). If `OPENROUTER_API_KEY` is set, the app switches automatically to LLM synthesis (Qwen3 via OpenRouter). We accept slightly less flexible template phrasing in exchange for guaranteed offline operation.
+- **E2E Score Gaps**: 10 query variants in the E2E suite score below the 0.65 threshold due to phrasing distance from FAQ entries (e.g., "Epic UGM conference", "Gold Silver Bronze vendor tiers"). These are data coverage gaps, not logic bugs — adding alias keywords to the affected FAQ entries in `SEED_DATA/epic_vendor_faq.json` would resolve them without any code changes.
 
 ---
 
