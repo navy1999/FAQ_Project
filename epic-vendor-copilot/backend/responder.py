@@ -51,6 +51,11 @@ _SYSTEM_PERSONA = (
     "suggest the user contact vendorservices.epic.com directly."
 )
 
+_CLARIFICATION_RESPONSE = (
+    "Could you clarify what you'd like to know about Epic Vendor Services? "
+    "For example, are you asking about enrollment, pricing, APIs, or something else?"
+)
+
 # ── Token budget ─────────────────────────────────────────────────────────────
 
 _TOKEN_BUDGET = 800
@@ -124,7 +129,14 @@ def _template_synthesize(
     Precondition: top_score >= 0.72, results non-empty.
     """
     results = retrieval_result.get("results", [])
-    assert len(results) > 0, "Synthesize called with empty retrieval results"
+    if not results:
+        return {
+            "answer": _CLARIFICATION_RESPONSE,
+            "mode": "template",
+            "source_ids": [],
+            "token_budget_used": 0,
+            "clarification_needed": True,
+        }
 
     prompt = build_prompt(query, results, memory_context)
 
@@ -142,6 +154,7 @@ def _template_synthesize(
         "mode": "template",
         "source_ids": [r["id"] for r in results],
         "token_budget_used": _count_tokens(prompt),
+        "clarification_needed": False,
     }
 
 
@@ -179,7 +192,7 @@ async def _llm_synthesize(
         client = openai.AsyncOpenAI(api_key=_OPENAI_KEY)
         model = "gpt-4o-mini"
 
-    response = await client.chat.completions.create(
+    kwargs = dict(
         model=model,
         messages=[
             {"role": "system", "content": _SYSTEM_PERSONA},
@@ -187,12 +200,11 @@ async def _llm_synthesize(
         ],
         max_tokens=300,
         temperature=0.2,
-        extra_body={
-            "chat_template_kwargs":{
-                "enable_thinking":False
-            },
-        },
     )
+    if _LLM_PROVIDER == "openrouter":
+        kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
+
+    response = await client.chat.completions.create(**kwargs)
 
     answer = response.choices[0].message.content
     usage = response.usage
@@ -204,6 +216,7 @@ async def _llm_synthesize(
         "mode": "llm",
         "source_ids": [r["id"] for r in results],
         "token_budget_used": _count_tokens(prompt),
+        "clarification_needed": False,
     }
 
 
@@ -261,7 +274,8 @@ async def _template_synthesize_streaming(
     final_payload = {
         "done": True,
         "mode": sync_result["mode"],
-        "token_budget_used": sync_result["token_budget_used"]
+        "token_budget_used": sync_result["token_budget_used"],
+        "source_ids": sync_result["source_ids"]
     }
     yield f'data: {json.dumps(final_payload)}\n\n'
 
@@ -295,7 +309,7 @@ async def _llm_synthesize_streaming(
         client = openai.AsyncOpenAI(api_key=_OPENAI_KEY)
         model = "gpt-4o-mini"
 
-    stream = await client.chat.completions.create(
+    kwargs = dict(
         model=model,
         messages=[
             {"role": "system", "content": _SYSTEM_PERSONA},
@@ -303,13 +317,12 @@ async def _llm_synthesize_streaming(
         ],
         max_tokens=300,
         temperature=0.2,
-        stream=True,
-        extra_body={
-            "chat_template_kwargs": {
-                "enable_thinking": False
-            },
-        },
     )
+    if _LLM_PROVIDER == "openrouter":
+        kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
+    kwargs["stream"] = True
+
+    stream = await client.chat.completions.create(**kwargs)
 
     async for chunk in stream:
         if chunk.choices and len(chunk.choices) > 0:
