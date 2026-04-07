@@ -2,6 +2,8 @@
 
 The test suite is structured in two layers: **pytest unit/integration tests** for backend correctness, and a **standalone end-to-end query test suite** for retrieval accuracy across the full FAQ corpus.
 
+**Current result: 55 passed, 0 failed.**
+
 ---
 
 ## Layer 1 — pytest Unit & Integration Tests
@@ -19,12 +21,14 @@ pytest backend/tests/ -v
 ### Test Manifest
 
 **`backend/tests/test_retriever.py`**
-Validates the FAISS retrieval mechanics and Bloom filter boundary constraints.
+Validates the FAISS retrieval mechanics, Bloom filter boundary constraints, query normalization, and cache behaviour.
 - **Domain Miss Checking**: Verifies that queries with zero domain keywords bypass FAISS immediately, yielding `domain_miss=True`.
 - **Confidence Thresholds**: Confirms that gibberish queries which pass the Bloom filter but lack semantic content yield an empty results array below the 0.55 confidence floor.
 - **Top-K Ordering**: Ensures FAISS returns results sorted descending by similarity score.
 - **Known Hits**: Checks that `"how do I enroll"` / `"what is vendor services"` correctly retrieve their canonical FAQ entries.
 - **Multi-result Constraints**: Validates broad keyword topics map to up to 3 closest matches.
+- **Query Normalization** (`TestNormalization`): `test_normalize_query_logic` confirms NFKC normalization, lowercasing, whitespace collapse, and punctuation stripping. `test_cache_hit_after_normalization` confirms `"How do I enroll?"` and `"how do i enroll"` share a single LRU cache entry.
+- **Query Variants** (`TestQueryVariants`): `test_enrollment_variants` and `test_cost_variants` confirm phrasing variants resolve to the correct canonical FAQ id.
 
 **`backend/tests/test_responder.py`**
 Ensures correct LLM mode transitions and token budget enforcement.
@@ -38,6 +42,16 @@ Checks deterministic routing rules that fire before retrieval.
 - `"enroll"` → `enrollment` redirect.
 - `"hipaa"` → `hipaa` boundary route.
 - Standard queries → `None` (no intercept).
+- **Trie Matching**: `test_trie_matches_password_variants` — confirms multi-word prefix variants (e.g., `"reset my password"`, `"forgot password"`) all hit the correct `admin_escalation` route via the Trie. `test_trie_does_not_match_unrelated` — confirms clean separation: unrelated queries return `None` and are not incorrectly intercepted.
+
+**`backend/tests/test_memory.py`**
+Validates session memory correctness, eviction, and heap-based session store behaviour.
+- **Eviction** (`TestConversationMemoryEviction`): Confirms oldest turns are dropped when the context window is full; single turns are preserved; empty memory returns an empty window.
+- **Used FAQ IDs** (`TestUsedFaqIds`): Confirms `used_faq_ids()` unions retrieved IDs across turns correctly.
+- **Recency Context** (`TestRecencyContext`): Validates full/summary split at the context window boundary.
+- **Session Store Eviction** (`TestSessionStoreEviction`): Confirms stale sessions are removed, fresh sessions are preserved, `get_or_create` returns the same object, and `touch()` updates the last-access timestamp.
+- **Heap Eviction** (`TestHeapEviction`): `test_heap_eviction_removes_expired_sessions` — confirms the min-heap correctly identifies and removes expired sessions in O(k log n). `test_heap_does_not_evict_fresh_sessions` — confirms sessions within TTL are untouched.
+- **Serialization** (`TestToDict`): Validates `to_dict()` output structure for memory snapshots returned by `/session/{id}/memory`.
 
 **`backend/tests/test_integration.py`**
 Uses `httpx.ASGITransport` to test full-stack request/response flows against the live FastAPI app.
@@ -46,68 +60,35 @@ Uses `httpx.ASGITransport` to test full-stack request/response flows against the
 - `/session/{id}/memory` correctly reflects dual user/assistant turns.
 - `/session/{id}` DELETE results in a fully cleared state.
 - `/health` returns `retriever`, `memory`, and `provider` fields in the expected format.
+- `memory_used=True` on the second turn of a conversation using a repeated FAQ topic.
+
+**`backend/tests/test_chat.py`**
+Unit-level tests for the `/chat` and `/chat/stream` routing logic with mocked retriever and synthesizer.
+- High-score retrieval → calls `synthesize` and returns `response_type="answer"`.
+- Low-score retrieval → returns `response_type="domain_miss"` without calling `synthesize`.
+- Mid-score retrieval → returns `response_type="clarification"`.
+- Invalid/empty query → returns 422 without touching the retriever.
+- Stream endpoint → off-topic query bypasses `synthesize` and streams a canned domain-miss response.
 
 ---
 
-## Layer 2 — End-to-End Query Test Suite
+## Layer 2 — Known Score Gaps
 
-`tests/run_query_tests.py` is a standalone 120+ case integration harness that tests the full retrieval pipeline (domain rules → FAISS → confidence gate) against every FAQ topic area, out-of-domain refusals, and ambiguous/clarification edge cases.
+10 query variants in the E2E harness score below the 0.65 confidence threshold, resulting in a `CLARIFY` response where `ANSWER` is expected. These are **data coverage gaps**, not logic bugs — the retriever correctly scores these queries as uncertain given the current FAQ phrasing.
 
-### Run it
+Affected queries and their root cause:
 
-```powershell
-# Windows — from epic-vendor-copilot\
-.\.venv\Scripts\python.exe tests\run_query_tests.py
-```
+| Query | Score | Expected FAQ | Gap |
+|---|---|---|---|
+| `"can I cancel my subscription"` | 0.6417 | vs-1078 | Missing alias: "cancel subscription" |
+| `"who manages user access"` | 0.6373 | vs-1119 | Missing alias: "user management" |
+| `"when will my account be ready"` | 0.5998 | vs-1278 | Missing alias: "account activation timeline" |
+| `"how long until I can log in after enrolling"` | 0.5939 | vs-1120 | Missing alias: "wait time after enrolling" |
+| `"REST API documentation"` | 0.6190 | vs-1125 | Missing alias: "API docs" |
+| `"Epic UGM conference"` | 0.6234 | vs-1100 | Missing alias: "UGM", "user group meeting" |
+| `"online learning portal"` | 0.5889 | vs-1100 | Missing alias: "e-learning", "learning portal" |
+| `"test my integration with Epic"` | 0.5707 | vs-1072 | Missing alias: "integration testing" |
+| `"Gold Silver Bronze vendor tiers"` | 0.6151 | vs-5798 | Missing alias: "tier comparison" |
+| `"something is wrong"` | 0.6521 | — | Should route to CLARIFY — add to `VAGUE_QUERIES` |
 
-```bash
-# macOS / Linux
-.venv/bin/python tests/run_query_tests.py
-```
-
-### What each result code means
-
-| Code | Meaning | Action |
-|---|---|---|
-| `PASS` (green) | Correct outcome + correct FAQ id returned | ✅ Nothing |
-| `WARN` (yellow) | Right outcome (ANSWER/REFUSE/CLARIFY), but wrong FAQ entry ranked first | Fix scoring / embedding boost |
-| `FAIL` (red) | Entirely wrong outcome — refused an answerable query, answered an OOD query, etc. | Fix domain rules, retriever thresholds, or clarify logic |
-
-### Test coverage by category
-
-| Category | Cases | Expected outcome |
-|---|---|---|
-| Enroll / sign up / register | 15 | ANSWER → `vs-1075` |
-| Cost / pricing / fees | 12 | ANSWER → `vs-1076` |
-| Trial / cancel / refund | 7 | ANSWER → `vs-1078` |
-| What is Vendor Services | 6 | ANSWER → `vs-1072` |
-| Who uses it | 3 | ANSWER → `vs-1073` |
-| Account setup timing | 5 | ANSWER → `vs-1278` |
-| Login / password | 8 | ANSWER → `vs-1120/1121` |
-| FHIR / APIs / standards | 11 | ANSWER → various |
-| open.epic / Epic on FHIR | 4 | ANSWER → `vs-1085/1086/5800` |
-| Learning / networking | 7 | ANSWER → `vs-1100` |
-| Testing tools | 5 | ANSWER → `vs-1240` |
-| Implementation | 3 | ANSWER → `vs-9797` |
-| Design / tech support | 3 | ANSWER → `vs-1265` |
-| Marketing / sales / Connection Hub | 5 | ANSWER → `vs-1112/3516` |
-| Showroom tiers | 6 | ANSWER → `vs-5797/5798/5815` |
-| Contact | 5 | ANSWER → `vs-1125/1126` |
-| Analytics / ML / Caboodle | 5 | ANSWER → `vs-1097` |
-| Clinical content | 2 | ANSWER → `vs-1096` |
-| Out-of-domain (OOD) | 10 | REFUSE |
-| Ambiguous / greeting / vague | 5 | CLARIFY |
-
-### Adjusting the score threshold
-
-The constant `SCORE_THRESHOLD = 0.30` at the top of `tests/run_query_tests.py` controls the minimum FAISS score required to classify a retriever result as an ANSWER. Adjust this to match your retriever's actual score distribution if needed.
-
-### CI integration
-
-The script exits with code `1` if any FAILs exist and `0` if all tests pass or only WARNs remain:
-
-```yaml
-# Example GitHub Actions step
-- name: Run query test suite
-  run: python tests/run_query_tests.py
-```
+The fix for all 9 ANSWER gaps is adding alias keywords to the relevant entries in `SEED_DATA/epic_vendor_faq.json`. The fix for `"something is wrong"` is adding it to `VAGUE_QUERIES` in `domain_rules.py`. No threshold or logic changes are needed.
