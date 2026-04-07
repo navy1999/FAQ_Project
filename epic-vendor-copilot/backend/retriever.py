@@ -5,9 +5,18 @@ Semantic retrieval engine for the Epic Vendor Services FAQ copilot.
 
 Architecture:
   FAISS approximate nearest-neighbor search:
-    Uses sentence-transformers "all-MiniLM-L6-v2" to encode the query and
-    all FAQ entries. FAISS IndexFlatIP (inner product) with L2-normalized
-    vectors is used so that inner product == cosine similarity.
+    Uses sentence-transformers "multi-qa-MiniLM-L6-cos-v1" to encode the query
+    and all FAQ entries. FAISS IndexFlatIP (inner product) with L2-normalized
+    vectors gives cosine similarity scores in [0, 1].
+
+Confidence thresholds (mirrors main.py routing logic):
+  score < 0.45          -> domain_miss  (out-of-domain or completely unrelated)
+  0.45 <= score < 0.72  -> needs_clarification (in-domain but ambiguous)
+  score >= 0.72         -> confident answer
+
+These flags are returned directly on every retrieve() call so that
+diagnose.py and run_query_tests.py can read routing decisions without
+reimplementing the threshold logic.
 """
 
 import json
@@ -22,6 +31,13 @@ from functools import lru_cache
 
 import nltk
 from nltk.corpus import wordnet as _wordnet
+
+
+# ── Threshold constants ───────────────────────────────────────────────────────
+
+SCORE_DOMAIN_MISS   = 0.45   # below this -> domain miss
+SCORE_CLARIFICATION = 0.72   # below this (but >= DOMAIN_MISS) -> clarification
+
 
 def _get_wordnet_synonyms(term: str) -> list[str]:
     """
@@ -41,6 +57,7 @@ def _get_wordnet_synonyms(term: str) -> list[str]:
             break
     return list(syns)[:5]
 
+
 # ── Load FAQ entries ──────────────────────────────────────────────────────────
 
 _SEED_PATH = Path(__file__).resolve().parent.parent / "SEED_DATA" / "epic_vendor_faq.json"
@@ -53,26 +70,25 @@ for section in _raw["sections"]:
     for entry in section["entries"]:
         _ENTRIES.append(entry)
 
+
 # ── SBERT model + FAISS index ────────────────────────────────────────────────
 
 _MODEL = SentenceTransformer("multi-qa-MiniLM-L6-cos-v1")
 
 _texts: list[str] = []
-_entry_index_map: list[int] = []   # FAISS position → _ENTRIES index
+_entry_index_map: list[int] = []   # FAISS position -> _ENTRIES index
 
 for _i, _e in enumerate(_ENTRIES):
     _texts.append(_e["question"])
     _entry_index_map.append(_i)
-    
-    for _field in ("keywords", "synonyms"):          # synonyms optional field
+
+    for _field in ("keywords", "synonyms"):
         for _term in _e.get(_field, []):
             _term = _term.strip()
             if not _term:
                 continue
-            # Index the keyword/synonym itself
             _texts.append(_term)
             _entry_index_map.append(_i)
-            # Index WordNet synonyms for single-word terms
             for _syn in _get_wordnet_synonyms(_term):
                 _texts.append(_syn)
                 _entry_index_map.append(_i)
@@ -95,7 +111,6 @@ def _normalize_query(q: str) -> str:
     q = unicodedata.normalize("NFKC", q.lower().strip())
     q = re.sub(r"[^\w\s\-\.]", "", q)
     q = re.sub(r"\s+", " ", q)
-        
     return q
 
 
@@ -108,6 +123,7 @@ def _encode_query_inner(query_text: str) -> np.ndarray:
     arr.flags.writeable = False
     return arr
 
+
 def _encode_query(query_text: str) -> np.ndarray:
     prev_misses = _CACHE_STATS["misses"]
     result = _encode_query_inner(_normalize_query(query_text)).copy()
@@ -117,7 +133,7 @@ def _encode_query(query_text: str) -> np.ndarray:
     return result
 
 
-# ── FAQ Retriever ───────────────────────────────────────────────────────────
+# ── FAQ Retriever ─────────────────────────────────────────────────────────────
 
 class FAQRetriever:
     """
@@ -134,11 +150,14 @@ class FAQRetriever:
         """
         Run the FAISS ANN search pipeline.
 
-        Returns:
-          {
-            "results": [{id, section, question, answer_text, source_url, score}],
-            "top_score": float | None
-          }
+        Returns
+        -------
+        {
+          "results":              list of matched FAQ dicts with score,
+          "top_score":            float | None,
+          "domain_miss":          bool  (top_score < SCORE_DOMAIN_MISS),
+          "needs_clarification":  bool  (SCORE_DOMAIN_MISS <= top_score < SCORE_CLARIFICATION)
+        }
         """
         query = _normalize_query(query)
         query_embedding = _encode_query(query)
@@ -154,49 +173,68 @@ class FAQRetriever:
         for i, (score, idx) in enumerate(zip(scores, indices)):
             if idx < 0:
                 continue
-            
+
             s = round(float(score), 4)
             if i == 0:
                 top_score = s
-                
+
             entry = self.entries[self.entry_index_map[idx]]
             results.append({
-                "id": entry["id"],
-                "section": entry["section"],
-                "question": entry["question"],
+                "id":          entry["id"],
+                "section":     entry["section"],
+                "question":    entry["question"],
                 "answer_text": entry["answer_text"],
-                "source_url": entry["source_url"],
-                "score": s,
+                "source_url":  entry["source_url"],
+                "score":       s,
             })
 
+        domain_miss         = top_score is None or top_score < SCORE_DOMAIN_MISS
+        needs_clarification = (
+            not domain_miss
+            and top_score is not None
+            and top_score < SCORE_CLARIFICATION
+        )
+
         return {
-            "results": results,
-            "top_score": top_score,
+            "results":             results,
+            "top_score":           top_score,
+            "domain_miss":         domain_miss,
+            "needs_clarification": needs_clarification,
         }
 
 
-# ── Module-level singleton + export ─────────────────────────────────────────
+# ── Module-level singleton + export ──────────────────────────────────────────
 
 _retriever = FAQRetriever()
 
 
 def retrieve(query: str, top_k: int = 3) -> dict:
     """
-    Public API for FAQ retrieval.
+    Public retrieval API.
 
-    Returns:
-      {
-        "results": [
-          {
-            "id": str,
-            "section": str,
-            "question": str,
-            "answer_text": str,
-            "source_url": str,
-            "score": float
-          }
-        ],
-        "top_score": float | None
-      }
+    Parameters
+    ----------
+    query : str
+        Raw user query string.
+    top_k : int
+        Number of candidate FAQ entries to return (default 3).
+
+    Returns
+    -------
+    {
+      "results": [
+        {
+          "id":          str,
+          "section":     str,
+          "question":    str,
+          "answer_text": str,
+          "source_url":  str,
+          "score":       float
+        }
+      ],
+      "top_score":           float | None,
+      "domain_miss":         bool,
+      "needs_clarification": bool
+    }
     """
     return _retriever.search(query, top_k=top_k)
