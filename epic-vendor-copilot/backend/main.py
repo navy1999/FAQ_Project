@@ -220,8 +220,16 @@ async def chat(req: ChatRequest):
                 response_type = "clarification"
                 answer = CLARIFICATION_RESPONSE
         else:
-            response_type = "clarification"
-            answer = CLARIFICATION_RESPONSE
+            # If no prior context, try synonym-expanded retrieval before giving up
+            domain_boosted = f"Epic Vendor Services {req.message}"
+            boosted_result = retriever.retrieve(domain_boosted)
+            b_score = boosted_result.get("top_score")
+            if b_score and b_score >= 0.72:
+                retrieval_result = boosted_result
+                top_score = b_score
+            else:
+                response_type = "clarification"
+                answer = CLARIFICATION_RESPONSE
 
     # Step 3: Handle Non-Answer routes
     if response_type != "answer":
@@ -240,6 +248,16 @@ async def chat(req: ChatRequest):
         )
 
     # Step 4: Answer route
+    if not retrieval_result.get("results"):
+        return ChatResponse(
+            answer=DOMAIN_MISS_RESPONSE,
+            source=SourceResponse(),
+            memory_used=False,
+            memory_turn_refs=[],
+            response_type="domain_miss",
+            mode=MODE
+        )
+
     retrieved_ids = [r["id"] for r in retrieval_result.get("results", [])]
     prior_ids = memory.used_faq_ids()
     memory_used = bool(prior_ids & set(retrieved_ids))
@@ -316,8 +334,16 @@ async def chat_stream(req: ChatRequest):
                 response_type = "clarification"
                 answer = CLARIFICATION_RESPONSE
         else:
-            response_type = "clarification"
-            answer = CLARIFICATION_RESPONSE
+            # If no prior context, try synonym-expanded retrieval before giving up
+            domain_boosted = f"Epic Vendor Services {req.message}"
+            boosted_result = retriever.retrieve(domain_boosted)
+            b_score = boosted_result.get("top_score")
+            if b_score and b_score >= 0.72:
+                retrieval_result = boosted_result
+                top_score = b_score
+            else:
+                response_type = "clarification"
+                answer = CLARIFICATION_RESPONSE
 
     # Step 3: Handle Non-Answer routes (Canned responses)
     if response_type != "answer":
@@ -338,6 +364,12 @@ async def chat_stream(req: ChatRequest):
         return StreamingResponse(canned_stream(), media_type="text/event-stream")
 
     # Step 4: Answer route (Streaming Synthesis)
+    if not retrieval_result.get("results"):
+        async def err_stream():
+            yield f'data: {json.dumps({"chunk": DOMAIN_MISS_RESPONSE})}\n\n'
+            yield f'data: {json.dumps({"done": True, "response_type": "domain_miss", "mode": MODE, "source": None})}\n\n'
+        return StreamingResponse(err_stream(), media_type="text/event-stream")
+
     retrieved_ids = [r["id"] for r in retrieval_result.get("results", [])]
     prior_ids = memory.used_faq_ids()
     memory_used = bool(prior_ids & set(retrieved_ids))

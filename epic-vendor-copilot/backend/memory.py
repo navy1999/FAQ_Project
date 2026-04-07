@@ -117,8 +117,10 @@ class SessionStore:
     def touch(self, session_id: str) -> None:
         """Update the last-access timestamp for a session."""
         if session_id in self._store:
+            now = time.time()
             mem = self._store[session_id][0]
-            self._store[session_id] = (mem, time.time())
+            self._store[session_id] = (mem, now)
+            heapq.heappush(self._heap, (now, session_id))
 
     def evict_stale(self, ttl_seconds: int = 1800) -> int:
         """

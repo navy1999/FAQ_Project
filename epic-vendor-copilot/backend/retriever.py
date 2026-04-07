@@ -83,7 +83,7 @@ for _i, _e in enumerate(_ENTRIES):
     _entry_index_map.append(_i)
 
     for _field in ("keywords", "synonyms"):
-        for _term in _e.get(_field, []):
+        for _term in (_e.get(_field) or []):
             _term = _term.strip()
             if not _term:
                 continue
@@ -187,6 +187,14 @@ class FAQRetriever:
                 "source_url":  entry["source_url"],
                 "score":       s,
             })
+
+        seen_ids = {}
+        for r in results:
+            eid = r["id"]
+            if eid not in seen_ids or r["score"] > seen_ids[eid]["score"]:
+                seen_ids[eid] = r
+        results = list(seen_ids.values())
+        results.sort(key=lambda x: x["score"], reverse=True)
 
         domain_miss         = top_score is None or top_score < SCORE_DOMAIN_MISS
         needs_clarification = (

@@ -30,7 +30,7 @@ _OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 # OpenRouter key and config
 _OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY")
 _OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-_OPENROUTER_MODEL = "qwen/qwen3.6-plus:free"
+_OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")
 
 if _OPENROUTER_KEY and _OPENAI_AVAILABLE:
     MODE = "llm"
@@ -81,48 +81,35 @@ def build_prompt(
     if over budget.
     """
     parts = [_SYSTEM_PERSONA, ""]
+    
+    # Memory context first (trim to budget)
+    if memory_context:
+        mem_lines = []
+        for ctx in memory_context:
+            if "content" in ctx:
+                mem_lines.append(f"  {ctx['role']}: {ctx['content']}")
+            else:
+                mem_lines.append(f"  {ctx['role']} (summary): {ctx.get('summary', '')}")
+        if mem_lines:
+            parts.append("Conversation history:")
+            parts.extend(mem_lines)
+            parts.append("")
 
-    # Retrieved FAQ context
+    # FAQ context
     if retrieved_chunks:
         parts.append("FAQ Context:")
         for i, chunk in enumerate(retrieved_chunks, 1):
-            truncated = chunk.get("answer_text", "")[:200]
-            parts.append(f"  [{i}] {truncated}")
+            parts.append(f"  [{i}] {chunk.get('answer_text', '')[:200]}")
         parts.append("")
 
-    # Build base prompt without memory to check remaining budget
     parts.append(f"User question: {query}")
-    base_prompt = "\n".join(parts)
-    remaining_budget = _TOKEN_BUDGET - _count_tokens(base_prompt)
-
-    # Add memory context, truncating from oldest if necessary
-    if memory_context and remaining_budget > 20:
-        memory_lines = []
-        for ctx in memory_context:
-            if "content" in ctx:
-                line = f"  {ctx['role']}: {ctx['content']}"
-            else:
-                line = f"  {ctx['role']} (summary): {ctx.get('summary', '')}"
-            memory_lines.append(line)
-
-        # Truncate oldest memory turns to fit budget
-        while memory_lines and _count_tokens("\n".join(memory_lines)) > remaining_budget - 5:
-            memory_lines.pop(0)
-
-        if memory_lines:
-            memory_header = "Conversation history:"
-            memory_block = "\n".join([memory_header] + memory_lines + [""])
-            # Insert memory after persona, before FAQ context
-            parts.insert(2, memory_block)
-
-    final_prompt = "\n".join(parts)
-
-    # Final safety truncation — hard cap at 800 tokens
-    words = final_prompt.split()
+    prompt = "\n".join(parts)
+    
+    # Hard token cap
+    words = prompt.split()
     if len(words) > _TOKEN_BUDGET:
-        final_prompt = " ".join(words[:_TOKEN_BUDGET])
-
-    return final_prompt
+        prompt = " ".join(words[:_TOKEN_BUDGET])
+    return prompt
 
 
 # ── Template synthesis (MODE_A) ──────────────────────────────────────────────
