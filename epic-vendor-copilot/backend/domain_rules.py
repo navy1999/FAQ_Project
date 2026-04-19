@@ -187,15 +187,29 @@ _KEYWORD_TABLE: list[tuple[str, str]] = [
     # Domain boundary (clinical / HIPAA)
     ("hipaa",                "boundary"),
     ("phi",                  "boundary"),
-    ("patient",              "boundary"),
-    ("clinical",             "boundary"),
-    ("diagnosis",            "boundary"),
-    ("treatment",            "boundary"),
     ("ehr",                  "boundary"),
     ("epic ehr",             "boundary"),
     ("medical record",       "boundary"),
-    ("prescription",         "boundary"),
 ]
+
+
+# Compound-context boundary rules: single clinical words like "treatment" or
+# "clinical" no longer block on their own (too many false positives for
+# legitimate vendor queries such as "treatment process for a rejected claim").
+# A boundary refusal now requires BOTH tokens of a rule to co-occur anywhere
+# in the query.
+_BOUNDARY_COMPOUND_RULES: list[frozenset] = [
+    frozenset({"treatment", "patient"}),
+    frozenset({"clinical", "diagnosis"}),
+    frozenset({"treatment", "medical"}),
+    frozenset({"patient", "record"}),
+    frozenset({"clinical", "trial"}),
+]
+
+
+def _check_compound_boundary(tokens: list[str]) -> bool:
+    token_set = frozenset(tokens)
+    return any(rule.issubset(token_set) for rule in _BOUNDARY_COMPOUND_RULES)
 
 
 # ── Module initialisation ─────────────────────────────────────────────────────
@@ -253,9 +267,19 @@ def check_domain_rules(query: str) -> Optional[str]:
     if not tokens:
         return None
 
-    # Fast path: skip Trie entirely if no token is in the Bloom filter
+    # Fast path: skip Trie entirely if no token is in the Bloom filter.
+    # Compound-boundary rules are checked even on the fast path, since their
+    # tokens (e.g. "treatment", "patient") are no longer seeded in the Bloom
+    # filter.
     if not any(tok in _bloom for tok in tokens):
+        if _check_compound_boundary(tokens):
+            return "boundary"
         return None
 
     # Slow path: confirm via Trie (eliminates Bloom false positives)
-    return _trie.search(tokens)
+    trie_result = _trie.search(tokens)
+    if trie_result is not None:
+        return trie_result
+    if _check_compound_boundary(tokens):
+        return "boundary"
+    return None

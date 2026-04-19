@@ -274,13 +274,18 @@ class TestExtendedRubricResponder:
         prompt = build_prompt("query " * 2000, chunks, mem)
         assert _count_tokens(prompt) <= _TOKEN_BUDGET
 
+    # Note: The original single `test_enable_thinking_false_in_extra_body` test
+    # asserted `extra_body` is ALWAYS set for OpenRouter. After the qwen3
+    # guard change (enable_thinking is a qwen3-specific chat-template kwarg
+    # that errors out on Gemma/Llama/GPT), that assertion is no longer
+    # correct. Split into two explicit branch tests below.
+
     @pytest.mark.asyncio
-    async def test_enable_thinking_false_in_extra_body(self, monkeypatch):
-        """test_enable_thinking_false_in_extra_body: assert extra_body contains enable_thinking=False"""
+    async def test_extra_body_set_for_qwen3_model(self, monkeypatch):
+        """When the OpenRouter model is a qwen3 model, enable_thinking=False must be sent."""
         import backend.responder
         from unittest.mock import MagicMock, AsyncMock
-        
-        # Create a mock openai module with OpenAI class
+
         mock_openai_module = MagicMock()
         mock_client = MagicMock()
         mock_response = MagicMock()
@@ -288,15 +293,42 @@ class TestExtendedRubricResponder:
         mock_response.usage = MagicMock(prompt_tokens=1, completion_tokens=1, total_tokens=2)
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
         mock_openai_module.AsyncOpenAI.return_value = mock_client
-        
+
         monkeypatch.setattr(backend.responder, "openai", mock_openai_module, raising=False)
         monkeypatch.setattr(backend.responder, "_OPENAI_AVAILABLE", True)
         monkeypatch.setattr(backend.responder, "MODE", "llm")
         monkeypatch.setattr(backend.responder, "_LLM_PROVIDER", "openrouter")
         monkeypatch.setattr(backend.responder, "_OPENAI_KEY", "test")
-        
-        await backend.responder._llm_synthesize("hi", {"results":[{"id":"dummy","answer_text":"dummy"}]}, [])
-        
+        monkeypatch.setattr(backend.responder, "_OPENROUTER_MODEL", "qwen/qwen3-8b")
+
+        await backend.responder._llm_synthesize("hi", {"results": [{"id": "dummy", "answer_text": "dummy"}]}, [])
+
         kwargs = mock_client.chat.completions.create.call_args.kwargs
         assert "extra_body" in kwargs
         assert kwargs["extra_body"] == {"chat_template_kwargs": {"enable_thinking": False}}
+
+    @pytest.mark.asyncio
+    async def test_extra_body_omitted_for_non_qwen3_model(self, monkeypatch):
+        """When the OpenRouter model is NOT qwen3, enable_thinking must NOT be sent."""
+        import backend.responder
+        from unittest.mock import MagicMock, AsyncMock
+
+        mock_openai_module = MagicMock()
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=MagicMock(content="hello"))]
+        mock_response.usage = MagicMock(prompt_tokens=1, completion_tokens=1, total_tokens=2)
+        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_openai_module.AsyncOpenAI.return_value = mock_client
+
+        monkeypatch.setattr(backend.responder, "openai", mock_openai_module, raising=False)
+        monkeypatch.setattr(backend.responder, "_OPENAI_AVAILABLE", True)
+        monkeypatch.setattr(backend.responder, "MODE", "llm")
+        monkeypatch.setattr(backend.responder, "_LLM_PROVIDER", "openrouter")
+        monkeypatch.setattr(backend.responder, "_OPENAI_KEY", "test")
+        monkeypatch.setattr(backend.responder, "_OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")
+
+        await backend.responder._llm_synthesize("hi", {"results": [{"id": "dummy", "answer_text": "dummy"}]}, [])
+
+        kwargs = mock_client.chat.completions.create.call_args.kwargs
+        assert "extra_body" not in kwargs

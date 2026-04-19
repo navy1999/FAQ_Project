@@ -30,7 +30,7 @@ _OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 # OpenRouter key and config
 _OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY")
 _OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-_OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")
+_OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "qwen/qwen3.6-plus")
 
 if _OPENROUTER_KEY and _OPENAI_AVAILABLE:
     MODE = "llm"
@@ -72,12 +72,14 @@ def build_prompt(
     query: str,
     retrieved_chunks: list[dict],
     memory_context: list[dict],
+    profile=None,
 ) -> str:
     """
     Build the full prompt for the LLM or for template reference.
 
     Includes:
       - System persona
+      - Optional user profile context
       - Memory context (recency_context format)
       - Retrieved FAQ chunks (answer_text[:200] each)
       - User query
@@ -86,7 +88,11 @@ def build_prompt(
     if over budget.
     """
     parts = [_SYSTEM_PERSONA, ""]
-    
+
+    if profile and not profile.is_empty():
+        parts.append(f"User context: {profile.to_prompt_string()}")
+        parts.append("")
+
     # Memory context first (trim to budget)
     if memory_context:
         mem_lines = []
@@ -123,6 +129,7 @@ def _template_synthesize(
     query: str,
     retrieval_result: dict,
     memory_context: list[dict],
+    profile=None,
 ) -> dict:
     """
     MODE_A: Deterministic template-based response synthesis.
@@ -138,15 +145,22 @@ def _template_synthesize(
             "clarification_needed": True,
         }
 
-    prompt = build_prompt(query, results, memory_context)
+    prompt = build_prompt(query, results, memory_context, profile)
+
+    greeting = f"Hi {profile.name}, " if (profile and profile.name) else ""
+    top = results[0]
 
     if len(results) == 1:
-        answer = results[0]["answer_text"]
+        answer = (
+            f"{greeting}based on the Epic Vendor Services FAQ:\n\n"
+            f"{top['answer_text']}\n\n"
+            f"For more details, visit: {top['source_url']}"
+        )
     else:
-        # 2-3 results: numbered list
-        lines = []
+        lines = [f"{greeting}here's what I found in the Epic Vendor Services FAQ:\n"]
         for i, r in enumerate(results, 1):
-            lines.append(f"{i}. {r['answer_text'][:200]}")
+            lines.append(f"{i}. {r['answer_text'][:300]}")
+        lines.append(f"\nFor more details, visit: {top['source_url']}")
         answer = "\n\n".join(lines)
 
     return {
@@ -164,6 +178,7 @@ async def _llm_synthesize(
     query: str,
     retrieval_result: dict,
     memory_context: list[dict],
+    profile=None,
 ) -> dict:
     """
     MODE_B: LLM-based response synthesis.
@@ -172,10 +187,10 @@ async def _llm_synthesize(
     results = retrieval_result.get("results", [])
     assert len(results) > 0, "Synthesize called with empty retrieval results"
 
-    prompt = build_prompt(query, results, memory_context)
+    prompt = build_prompt(query, results, memory_context, profile)
 
     if not _OPENAI_AVAILABLE:
-        return _template_synthesize(query, retrieval_result, memory_context)
+        return _template_synthesize(query, retrieval_result, memory_context, profile)
 
     # Build client — OpenRouter or OpenAI
     if _LLM_PROVIDER == "openrouter":
@@ -201,23 +216,28 @@ async def _llm_synthesize(
         max_tokens=300,
         temperature=0.2,
     )
-    if _LLM_PROVIDER == "openrouter":
+    # enable_thinking is a qwen3-specific template kwarg; sending it to
+    # Gemma / Llama / GPT errors out.
+    if _LLM_PROVIDER == "openrouter" and "qwen3" in _OPENROUTER_MODEL.lower():
         kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
 
-    response = await client.chat.completions.create(**kwargs)
+    try:
+        response = await client.chat.completions.create(**kwargs)
+        answer = response.choices[0].message.content
+        usage = response.usage
+        print(f"[LLM:{_LLM_PROVIDER}] Tokens — prompt: {usage.prompt_tokens}, "
+              f"completion: {usage.completion_tokens}, total: {usage.total_tokens}")
 
-    answer = response.choices[0].message.content
-    usage = response.usage
-    print(f"[LLM:{_LLM_PROVIDER}] Tokens — prompt: {usage.prompt_tokens}, "
-          f"completion: {usage.completion_tokens}, total: {usage.total_tokens}")
-
-    return {
-        "answer": answer,
-        "mode": "llm",
-        "source_ids": [r["id"] for r in results],
-        "token_budget_used": _count_tokens(prompt),
-        "clarification_needed": False,
-    }
+        return {
+            "answer": answer,
+            "mode": "llm",
+            "source_ids": [r["id"] for r in results],
+            "token_budget_used": _count_tokens(prompt),
+            "clarification_needed": False,
+        }
+    except Exception as e:
+        print(f"[LLM Error] Falling back to template: {e}")
+        return _template_synthesize(query, retrieval_result, memory_context, profile)
 
 
 # ── Public API ───────────────────────────────────────────────────────────────
@@ -226,6 +246,7 @@ async def synthesize(
     query: str,
     retrieval_result: dict,
     memory: object | None = None,
+    profile=None,
 ) -> dict:
     """
     Synthesize a response to the user query.
@@ -235,6 +256,7 @@ async def synthesize(
         query: The user's question
         retrieval_result: Output from retriever.retrieve()
         memory: ConversationMemory instance
+        profile: Optional UserProfile for personalization
 
     Returns:
         {
@@ -250,9 +272,9 @@ async def synthesize(
         memory_context = memory.recency_context()
 
     if MODE == "llm":
-        return await _llm_synthesize(query, retrieval_result, memory_context)
+        return await _llm_synthesize(query, retrieval_result, memory_context, profile)
     else:
-        return _template_synthesize(query, retrieval_result, memory_context)
+        return _template_synthesize(query, retrieval_result, memory_context, profile)
 
 # ── Streaming API ────────────────────────────────────────────────────────────
 
@@ -260,12 +282,13 @@ async def _template_synthesize_streaming(
     query: str,
     retrieval_result: dict,
     memory_context: list[dict],
+    profile=None,
 ):
     # Get the complete deterministic answer
-    sync_result = _template_synthesize(query, retrieval_result, memory_context)
+    sync_result = _template_synthesize(query, retrieval_result, memory_context, profile)
     answer = sync_result["answer"]
     words = answer.split(" ")
-    
+
     for i, word in enumerate(words):
         chunk = word + (" " if i < len(words) - 1 else "")
         yield f'data: {json.dumps({"chunk": chunk})}\n\n'
@@ -284,14 +307,15 @@ async def _llm_synthesize_streaming(
     query: str,
     retrieval_result: dict,
     memory_context: list[dict],
+    profile=None,
 ):
     results = retrieval_result.get("results", [])
     assert len(results) > 0, "Synthesize called with empty retrieval results"
 
-    prompt = build_prompt(query, results, memory_context)
+    prompt = build_prompt(query, results, memory_context, profile)
 
     if not _OPENAI_AVAILABLE:
-        async for chunk in _template_synthesize_streaming(query, retrieval_result, memory_context):
+        async for chunk in _template_synthesize_streaming(query, retrieval_result, memory_context, profile):
             yield chunk
         return
 
@@ -318,29 +342,33 @@ async def _llm_synthesize_streaming(
         max_tokens=300,
         temperature=0.2,
     )
-    if _LLM_PROVIDER == "openrouter":
+    if _LLM_PROVIDER == "openrouter" and "qwen3" in _OPENROUTER_MODEL.lower():
         kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
     kwargs["stream"] = True
 
-    stream = await client.chat.completions.create(**kwargs)
+    try:
+        stream = await client.chat.completions.create(**kwargs)
+        async for chunk in stream:
+            if chunk.choices and len(chunk.choices) > 0:
+                delta_content = chunk.choices[0].delta.content
+                if delta_content:
+                    yield f'data: {json.dumps({"chunk": delta_content})}\n\n'
+    except Exception as e:
+        print(f"[LLM Error] Falling back to template: {e}")
+        async for chunk in _template_synthesize_streaming(
+            query, retrieval_result, memory_context, profile
+        ):
+            yield chunk
+        return
 
-    async for chunk in stream:
-        if chunk.choices and len(chunk.choices) > 0:
-            delta_content = chunk.choices[0].delta.content
-            if delta_content:
-                yield f'data: {json.dumps({"chunk": delta_content})}\n\n'
-
-    final_payload = {
-        "done": True,
-        "mode": "llm",
-        "token_budget_used": _count_tokens(prompt)
-    }
+    final_payload = {"done": True, "mode": "llm", "token_budget_used": _count_tokens(prompt)}
     yield f'data: {json.dumps(final_payload)}\n\n'
 
 async def synthesize_stream(
     query: str,
     retrieval_result: dict,
     memory: object | None = None,
+    profile=None,
 ):
     """
     Synthesize a streaming response.
@@ -351,8 +379,8 @@ async def synthesize_stream(
         memory_context = memory.recency_context()
 
     if MODE == "llm":
-        async for chunk in _llm_synthesize_streaming(query, retrieval_result, memory_context):
+        async for chunk in _llm_synthesize_streaming(query, retrieval_result, memory_context, profile):
             yield chunk
     else:
-        async for chunk in _template_synthesize_streaming(query, retrieval_result, memory_context):
+        async for chunk in _template_synthesize_streaming(query, retrieval_result, memory_context, profile):
             yield chunk

@@ -34,6 +34,7 @@ for _corpus in ("wordnet", "omw-1.4"):
 from backend.memory import ConversationMemory, SessionStore, Turn
 from backend.responder import MODE, _LLM_PROVIDER, _OPENROUTER_MODEL, synthesize
 from backend.domain_rules import check_domain_rules
+from backend.context_utils import _extract_user_context, _is_intro_only
 
 _STARTUP_TIME = time.time()
 
@@ -187,6 +188,20 @@ async def chat(req: ChatRequest):
         )
 
     memory = session_store.get_or_create(req.session_id)
+    profile = session_store.get_profile(req.session_id)
+    _extract_user_context(req.message, profile)
+
+    if _is_intro_only(req.message) and not profile.is_empty():
+        greeting = f"Hi {profile.name}! " if profile.name else "Hi! "
+        role_ack = f"I'll keep in mind that you're a {profile.role}. " if profile.role else ""
+        return ChatResponse(
+            answer=f"{greeting}{role_ack}How can I help you with Epic Vendor Services today?",
+            source=SourceResponse(),
+            memory_used=False,
+            memory_turn_refs=[],
+            response_type="answer",
+            mode=MODE
+        )
 
     # Pre-retrieval domain guard
     _pre_action = check_domain_rules(req.message)
@@ -296,7 +311,8 @@ async def chat(req: ChatRequest):
     synth = await synthesize(
         query=req.message,
         retrieval_result=retrieval_result,
-        memory=memory
+        memory=memory,
+        profile=profile,
     )
 
     assistant_turn = Turn(role="assistant", content=synth["answer"], retrieved_ids=retrieved_ids, turn_index=current_turn_index + 1, timestamp=time.time())
@@ -325,6 +341,21 @@ async def chat_stream(req: ChatRequest):
         return StreamingResponse(err_stream(), media_type="text/event-stream")
 
     memory = session_store.get_or_create(req.session_id)
+    profile = session_store.get_profile(req.session_id)
+    _extract_user_context(req.message, profile)
+
+    if _is_intro_only(req.message) and not profile.is_empty():
+        async def intro_stream():
+            greeting = f"Hi {profile.name}! " if profile.name else "Hi! "
+            role_ack = f"I'll keep in mind that you're a {profile.role}. " if profile.role else ""
+            full = f"{greeting}{role_ack}How can I help you with Epic Vendor Services today?"
+            words = full.split(" ")
+            for i, word in enumerate(words):
+                chunk = word + (" " if i < len(words) - 1 else "")
+                yield f'data: {json.dumps({"chunk": chunk})}\n\n'
+                await asyncio.sleep(0.03)
+            yield f'data: {json.dumps({"done": True, "response_type": "answer", "mode": MODE, "source": None, "memory_used": False, "memory_turn_refs": []})}\n\n'
+        return StreamingResponse(intro_stream(), media_type="text/event-stream")
 
     # Pre-retrieval domain guard
     _pre_action = check_domain_rules(req.message)
@@ -438,7 +469,8 @@ async def chat_stream(req: ChatRequest):
         stream_gen = synthesize_stream(
             query=req.message,
             retrieval_result=retrieval_result,
-            memory=memory
+            memory=memory,
+            profile=profile,
         )
 
         async for sse_message in stream_gen:

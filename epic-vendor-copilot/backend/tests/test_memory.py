@@ -16,7 +16,7 @@ import time
 
 import pytest
 
-from backend.memory import ConversationMemory, SessionStore, Turn
+from backend.memory import ConversationMemory, SessionStore, Turn, UserProfile
 
 
 class TestConversationMemoryEviction:
@@ -118,10 +118,12 @@ class TestSessionStoreEviction:
     """Test SessionStore.evict_stale() removes sessions older than TTL."""
 
     def test_evict_stale_removes_old_sessions(self, session_store: SessionStore):
-        # Create a session and manually backdate its timestamp
+        # Create a session and manually backdate its timestamp.
+        # NOTE: _store is now a (memory, profile, timestamp) 3-tuple after the
+        # UserProfile memory-contract change.
         mem = session_store.get_or_create("old-session")
         old_time = time.time() - 3600
-        session_store._store["old-session"] = (mem, old_time)
+        session_store._store["old-session"] = (mem, UserProfile(), old_time)
         # Also backdate the heap entry so heap-based eviction sees it
         session_store._heap = [(old_time, "old-session")]
 
@@ -146,12 +148,12 @@ class TestSessionStoreEviction:
 
     def test_touch_updates_timestamp(self, session_store: SessionStore):
         session_store.get_or_create("touch-test")
-        # Backdate
+        # Backdate. _store is (memory, profile, timestamp).
         mem = session_store._store["touch-test"][0]
-        session_store._store["touch-test"] = (mem, time.time() - 3600)
+        session_store._store["touch-test"] = (mem, UserProfile(), time.time() - 3600)
         # Touch should update
         session_store.touch("touch-test")
-        _, ts = session_store._store["touch-test"]
+        _, _, ts = session_store._store["touch-test"]
         assert time.time() - ts < 5  # Should be recent
 
 
@@ -181,11 +183,12 @@ class TestHeapEviction:
         store.get_or_create("s1")
         store.get_or_create("s2")
         store.get_or_create("s3")
-        # Manually backdate all sessions in both _store and _heap
+        # Manually backdate all sessions in both _store and _heap.
+        # _store is (memory, profile, timestamp).
         old_time = time.time() - 3600
         for sid in ["s1", "s2", "s3"]:
             mem = store._store[sid][0]
-            store._store[sid] = (mem, old_time)
+            store._store[sid] = (mem, UserProfile(), old_time)
         import heapq
         store._heap = []
         for sid in ["s1", "s2", "s3"]:
@@ -201,3 +204,20 @@ class TestHeapEviction:
         evicted = store.evict_stale(1800)
         assert evicted == 0
         assert store.active_count() == 2
+
+
+def test_user_profile_extraction():
+    from backend.main import _extract_user_context
+    profile = UserProfile()
+    _extract_user_context("Hi, I'm Navneet, I'm a vendor engineer", profile)
+    assert profile.name == "Navneet"
+    assert "engineer" in profile.role.lower()
+
+
+def test_profile_persists_in_session_store():
+    store = SessionStore()
+    store.get_or_create("test-session")
+    profile = store.get_profile("test-session")
+    assert profile.is_empty()
+    profile.name = "Navneet"
+    assert store.get_profile("test-session").name == "Navneet"

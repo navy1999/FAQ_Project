@@ -27,6 +27,29 @@ class Turn:
     timestamp: float = field(default_factory=time.time)
 
 
+@dataclass
+class UserProfile:
+    name: str = ""
+    role: str = ""
+    organization: str = ""
+    extra_context: list[str] = field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return not self.name and not self.role and not self.organization
+
+    def to_prompt_string(self) -> str:
+        # Cap individual fields at 100 chars to guard against runaway regex
+        # capture (role/org patterns are lazy `[\w\s]+?`) and prompt bloat.
+        parts = []
+        if self.name:
+            parts.append(f"Name: {self.name[:100]}")
+        if self.role:
+            parts.append(f"Role: {self.role[:100]}")
+        if self.organization:
+            parts.append(f"Organization: {self.organization[:100]}")
+        return ", ".join(parts) if parts else ""
+
+
 class ConversationMemory:
     """
     Sliding-window conversation memory backed by a bounded deque.
@@ -102,24 +125,29 @@ class SessionStore:
     """
 
     def __init__(self):
-        self._store: dict[str, tuple[ConversationMemory, float]] = {}
+        self._store: dict[str, tuple[ConversationMemory, UserProfile, float]] = {}
         self._heap: list[tuple[float, str]] = []
 
     def get_or_create(self, session_id: str) -> ConversationMemory:
         """Retrieve existing session memory or create a new one."""
         if session_id not in self._store:
-            self._store[session_id] = (ConversationMemory(), time.time())
+            self._store[session_id] = (ConversationMemory(), UserProfile(), time.time())
             heapq.heappush(self._heap, (time.time(), session_id))
         else:
             self.touch(session_id)
         return self._store[session_id][0]
 
+    def get_profile(self, session_id: str) -> UserProfile:
+        if session_id in self._store:
+            return self._store[session_id][1]
+        return UserProfile()
+
     def touch(self, session_id: str) -> None:
         """Update the last-access timestamp for a session."""
         if session_id in self._store:
             now = time.time()
-            mem = self._store[session_id][0]
-            self._store[session_id] = (mem, now)
+            mem, profile, _ = self._store[session_id]
+            self._store[session_id] = (mem, profile, now)
             heapq.heappush(self._heap, (now, session_id))
 
     def evict_stale(self, ttl_seconds: int = 1800) -> int:
@@ -137,7 +165,7 @@ class SessionStore:
         while self._heap and self._heap[0][0] < cutoff:
             _, sid = heapq.heappop(self._heap)
             if sid in self._store:
-                _, last_access = self._store[sid]
+                _, _, last_access = self._store[sid]
                 if last_access < cutoff:
                     del self._store[sid]
                     evicted += 1

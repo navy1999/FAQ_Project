@@ -70,3 +70,34 @@ The Bloom filter (`pybloom_live`, capacity=500, error_rate=0.01) is **not** a pe
 ### Heap-Based Session Eviction — O(k log n) vs O(n)
 
 `SessionStore.evict_stale()` uses a min-heap (`heapq`) keyed on session creation time. When evicting, we pop only the oldest entries until we reach a non-expired timestamp, giving O(k log n) where k = expired sessions. The alternative linear scan is O(n) over all sessions. At current scale both are equivalent, but the heap documents the correct pattern for horizontal scaling where session counts grow to O(10⁴+).
+
+## Domain Guard Update (Post-Review)
+
+The initial implementation used single-keyword blocking for clinical terms
+such as "treatment", "clinical", and "patient". This caused false positives
+for legitimate vendor queries like "what is the treatment process for a
+rejected claim".
+
+Fix: Single clinical keywords were removed from the blocking list. Boundary
+detection now requires compound context — both "treatment" AND "patient"
+must co-occur to trigger a boundary refusal. Unambiguous terms (hipaa, phi,
+ehr) remain as single-keyword blocks.
+
+Rationale: The LLM system prompt already constrains responses to vendor
+topics. The keyword gate is a pre-filter for obvious cases only — nuanced
+context decisions are delegated to the LLM.
+
+## User Context Memory
+
+Added UserProfile extraction to session memory. When a user states their
+name, role, or organization, that context is stored in the session and
+injected into every subsequent LLM prompt. This enables personalized,
+role-aware responses without requiring auth or a login flow.
+
+## LLM Error Handling
+
+Added try/except around all LLM API calls in responder.py. On any error
+(rate limit, network failure, model unavailable), the system automatically
+falls back to template mode and returns a deterministic answer. The user
+never sees a broken state.
+

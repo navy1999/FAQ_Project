@@ -92,3 +92,30 @@ Affected queries and their root cause:
 | `"something is wrong"` | 0.6521 | — | Should route to CLARIFY — add to `VAGUE_QUERIES` |
 
 The fix for all 9 ANSWER gaps is adding alias keywords to the relevant entries in `SEED_DATA/epic_vendor_faq.json`. The fix for `"something is wrong"` is adding it to `VAGUE_QUERIES` in `domain_rules.py`. No threshold or logic changes are needed.
+
+## Test Changes (UserProfile + qwen3 Guard Update)
+
+Two sets of existing tests were updated in place when the underlying
+contracts they targeted changed. The behavior under test still matters —
+only the contract moved.
+
+- `backend/tests/test_memory.py` — three tests (`test_evict_stale_removes_old_sessions`,
+  `test_touch_updates_timestamp`, `test_heap_eviction_removes_expired_sessions`)
+  previously wrote 2-tuples into `SessionStore._store`. After the UserProfile
+  change, `_store` holds `(memory, profile, timestamp)` 3-tuples, so those
+  writes now include `UserProfile()` and the unpack in `test_touch_updates_timestamp`
+  became `_, _, ts = ...`.
+
+- `backend/tests/test_responder.py` — the single
+  `test_enable_thinking_false_in_extra_body` test asserted `extra_body` is
+  always set for OpenRouter. After the qwen3-only guard was added (sending
+  `chat_template_kwargs={"enable_thinking": False}` to Gemma/Llama/GPT
+  errors out), that assertion was no longer correct. It was split into two
+  explicit branch tests:
+  - `test_extra_body_set_for_qwen3_model` — asserts `extra_body` IS sent
+    when `_OPENROUTER_MODEL` contains `qwen3`.
+  - `test_extra_body_omitted_for_non_qwen3_model` — asserts `extra_body`
+    is NOT sent for a Llama model.
+
+  The old single test was deleted because its premise (always-on
+  `extra_body`) no longer reflects the implementation.
