@@ -14,8 +14,11 @@ import os
 
 import pytest
 
+from unittest.mock import patch
+
 # Ensure tests run in template mode
 os.environ.pop("OPENAI_API_KEY", None)
+os.environ.pop("OPENROUTER_API_KEY", None)  # ADD THIS LINE
 
 from backend.responder import (
     MODE,

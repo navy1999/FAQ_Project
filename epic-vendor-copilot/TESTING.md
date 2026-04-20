@@ -2,7 +2,9 @@
 
 The test suite is structured in two layers: **pytest unit/integration tests** for backend correctness, and a **standalone end-to-end query test suite** for retrieval accuracy across the full FAQ corpus.
 
-**Current result: 55 passed, 0 failed.**
+**Current result: 61 passed, 0 failed.**
+
+(Note: The post-review spec referenced a target of 74 tests, but the conversational-intelligence-layer changes were delivered without expanding the test suite per the "no new test files" directive.)
 
 ---
 

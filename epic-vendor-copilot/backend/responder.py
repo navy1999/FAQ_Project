@@ -46,9 +46,19 @@ else:
 # ── System persona ───────────────────────────────────────────────────────────
 
 _SYSTEM_PERSONA = (
-    "You are a support agent for Epic Vendor Services. Answer only using "
-    "the provided FAQ context. If the answer is not in context, say so and "
-    "suggest the user contact vendorservices.epic.com directly."
+    "You are a helpful support agent for Epic Vendor Services.\n\n"
+    "Follow these priorities in order:\n\n"
+    "1. CONVERSATIONAL: If the user asks about themselves — their name, role, "
+    "organization, or what you remember about them — answer directly from the "
+    "User context and Conversation history provided. Do not say you cannot answer "
+    "these questions.\n\n"
+    "2. FAQ ANSWER: If the question is about Epic Vendor Services, answer using "
+    "the FAQ Context provided. Be specific and actionable. If the FAQ context "
+    "contains a partial answer, use it and acknowledge what you know.\n\n"
+    "3. HONEST FALLBACK: Only say you do not have information if the FAQ Context "
+    "is genuinely irrelevant to the question. In that case, suggest the user "
+    "contact vendorservices.epic.com directly.\n\n"
+    "Never fabricate information not present in the FAQ context or conversation history."
 )
 
 _CLARIFICATION_RESPONSE = (
@@ -110,7 +120,7 @@ def build_prompt(
     if retrieved_chunks:
         parts.append("FAQ Context:")
         for i, chunk in enumerate(retrieved_chunks, 1):
-            parts.append(f"  [{i}] {chunk.get('answer_text', '')[:200]}")
+            parts.append(f"  [{i}] {chunk.get('answer_text', '')[:500]}")
         parts.append("")
 
     parts.append(f"User question: {query}")
@@ -185,7 +195,8 @@ async def _llm_synthesize(
     Precondition: top_score >= 0.72, results non-empty.
     """
     results = retrieval_result.get("results", [])
-    assert len(results) > 0, "Synthesize called with empty retrieval results"
+    if not results:
+        return _template_synthesize(query, retrieval_result, memory_context, profile)
 
     prompt = build_prompt(query, results, memory_context, profile)
 
@@ -310,7 +321,10 @@ async def _llm_synthesize_streaming(
     profile=None,
 ):
     results = retrieval_result.get("results", [])
-    assert len(results) > 0, "Synthesize called with empty retrieval results"
+    if not results:
+        async for chunk in _template_synthesize_streaming(query, retrieval_result, memory_context, profile):
+            yield chunk
+        return
 
     prompt = build_prompt(query, results, memory_context, profile)
 

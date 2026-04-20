@@ -200,7 +200,15 @@
             "forum",
             "tutorials",
             "sherlock",
-            "education"
+            "education",
+            "learning resources",
+            "vendor resources",
+            "self-service tutorials",
+            "developer forum",
+            "peer education",
+            "learning opportunities",
+            "educational materials",
+            "training resources"
           ],
           "source_url": "https://vendorservices.epic.com/FAQ/Index",
           "section": "Learning & Networking",
@@ -208,7 +216,10 @@
           "synonyms": [
             "resources",
             "developer forum",
-            "peer learning"
+            "peer learning",
+            "learning center",
+            "training portal",
+            "education hub"
           ]
         }
       ]

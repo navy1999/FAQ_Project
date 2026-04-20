@@ -101,3 +101,35 @@ Added try/except around all LLM API calls in responder.py. On any error
 falls back to template mode and returns a deterministic answer. The user
 never sees a broken state.
 
+## Conversational Intelligence Layer (Post-Review)
+
+Three classes of queries now bypass FAISS retrieval entirely and are 
+resolved directly from session state:
+
+**Conversational meta-queries** (`_is_conversational_meta`): Questions 
+about the user's own profile — name, role, organization, conversation 
+history. These are answered directly from UserProfile and ConversationMemory 
+without touching the retriever. Previously, these were mis-routed to the 
+domain guard and blocked as off-domain.
+
+**Capability queries** (`_is_capability_query`): Questions about what the 
+assistant can help with. Answered with a hardcoded capability menu derived 
+from the 11 FAQ sections. Prevents the system from returning a null response 
+when users ask about its own scope.
+
+**Domain boundary fix**: The "boundary" action from check_domain_rules() 
+now correctly returns a domain_miss response in main.py. Previously, 
+"boundary" was not handled and fell through to FAISS, allowing clinical 
+queries like "I need treatment information for my patient" to reach 
+retrieval instead of being hard-blocked.
+
+**System prompt hierarchy**: The LLM system prompt was restructured from 
+a single "answer only from FAQ" directive into a three-tier priority system: 
+(1) conversational/profile questions from session context, (2) FAQ answers 
+from retrieved context, (3) honest fallback with redirect. This prevents 
+the model from over-refusing on partial-match queries.
+
+**Answer truncation fix**: FAQ answer text passed to the LLM was truncated 
+at 200 characters, cutting off actionable content (e.g. password reset 
+instructions). Increased to 500 characters.
+
