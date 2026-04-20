@@ -16,6 +16,10 @@ import re
 
 def _extract_user_context(message: str, profile) -> bool:
     """Extract name, role, org from self-identification statements. Updates profile in place."""
+    first_ten = " ".join(message.lower().split()[:10])
+    identity_triggers = ("i'm", "i am", "my name", "i work", "i'm from", "from")
+    if not any(t in first_ten for t in identity_triggers):
+        return False
     changed = False
     name_patterns = [
         r"(?:i'm|i am|my name is)\s+([A-Z][a-z]+)",

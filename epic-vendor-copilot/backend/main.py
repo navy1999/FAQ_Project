@@ -161,75 +161,6 @@ class ChatResponse(BaseModel):
     mode: str  # "template" | "llm"
 
 
-import re as _re
-
-_CONVERSATIONAL_PATTERNS = [
-    r"(what'?s?\s+my\s+(name|role|job|title|position|company|organization|org))",
-    r"(who\s+am\s+i)",
-    r"(do\s+you\s+(know|remember)\s+(who\s+i\s+am|my\s+name|me))",
-    r"(what\s+do\s+you\s+(know|remember)\s+about\s+me)",
-    r"(remember\s+my\s+(name|role|info|details))",
-    r"(can\s+you\s+(tell\s+me|show\s+me)\s+my\s+(profile|info|details|name|role))",
-    r"(you\s+remember|do\s+you\s+remember)",
-    r"(what\s+(have\s+)?(i|we)\s+(talked|discussed|asked)\s+about)",
-]
-
-
-def _is_conversational_meta(message: str) -> bool:
-    q = message.strip().lower()
-    return any(_re.search(p, q) for p in _CONVERSATIONAL_PATTERNS)
-
-
-def _build_profile_response(profile, memory) -> str:
-    if profile.is_empty():
-        return (
-            "I don't have any information about you yet. You can tell me your "
-            "name, role, or organization and I'll keep it in mind for our conversation."
-        )
-    parts = []
-    if profile.name:
-        parts.append(f"your name is {profile.name}")
-    if profile.role:
-        parts.append(f"you're a {profile.role}")
-    if profile.organization:
-        parts.append(f"you work at {profile.organization}")
-
-    profile_str = "Here's what I know about you: " + ", ".join(parts) + "."
-
-    turns = memory.context_window()
-    user_turns = [t for t in turns if t.role == "user"]
-    if len(user_turns) > 1:
-        profile_str += f" We've exchanged {len(user_turns)} messages so far in this session."
-
-    return profile_str
-
-
-_CAPABILITY_PATTERNS = [
-    r"what\s+can\s+you\s+(help|do|answer|tell)",
-    r"what\s+do\s+you\s+(know|cover|support)",
-    r"how\s+can\s+you\s+help",
-    r"what\s+(topics|questions)\s+(do\s+you|can\s+you)",
-    r"what\s+are\s+you",
-    r"how\s+do\s+you\s+work",
-]
-
-_CAPABILITY_RESPONSE = (
-    "I can help you with questions about Epic Vendor Services, including:\n\n"
-    "• Enrollment and membership — pricing, trial period, how to get started\n"
-    "• APIs and data exchange — FHIR, SMART on FHIR, CDS Hooks, HL7 standards\n"
-    "• Testing tools — sandboxes, Hyperspace Simulator, Hyperdrive harness\n"
-    "• Showroom marketplace — Connection Hub listings, product tiers\n"
-    "• Learning resources — developer forums, tutorials, Sherlock tickets\n"
-    "• Website access — account setup, login help, UserWeb\n\n"
-    "What would you like to know?"
-)
-
-
-def _is_capability_query(message: str) -> bool:
-    q = message.strip().lower()
-    return any(_re.search(p, q) for p in _CAPABILITY_PATTERNS)
-
-
 def _is_valid_query(query: str) -> bool:
     q = query.strip()
     return 3 <= len(q) <= 500 and any(c.isalpha() for c in q)
@@ -272,26 +203,6 @@ async def chat(req: ChatRequest):
             mode=MODE
         )
 
-    if _is_conversational_meta(req.message):
-        return ChatResponse(
-            answer=_build_profile_response(profile, memory),
-            source=SourceResponse(),
-            memory_used=False,
-            memory_turn_refs=[],
-            response_type="answer",
-            mode="template"
-        )
-
-    if _is_capability_query(req.message):
-        return ChatResponse(
-            answer=_CAPABILITY_RESPONSE,
-            source=SourceResponse(),
-            memory_used=False,
-            memory_turn_refs=[],
-            response_type="answer",
-            mode="template"
-        )
-
     # Pre-retrieval domain guard
     _pre_action = check_domain_rules(req.message)
     if _pre_action == "vague":
@@ -329,14 +240,23 @@ async def chat(req: ChatRequest):
     retrieval_result = retriever.retrieve(req.message)
     top_score = retrieval_result.get("top_score")
 
+    # Lower threshold for sessions with active user profile so that
+    # low-scoring conversational queries still reach the LLM which can
+    # answer from User context rather than FAQ chunks.
+    effective_domain_miss_threshold = 0.45
+    effective_clarification_threshold = 0.65
+    if not profile.is_empty():
+        effective_domain_miss_threshold = 0.25
+        effective_clarification_threshold = 0.30
+
     # Step 2: Routing logic
     response_type: ResponseType = "answer"
     answer = ""
     
-    if top_score is None or top_score < 0.45:
+    if top_score is None or top_score < effective_domain_miss_threshold:
         response_type = "domain_miss"
         answer = DOMAIN_MISS_RESPONSE
-    elif top_score < 0.65:
+    elif top_score < effective_clarification_threshold:
         # Check memory expansion before committing to clarification
         context_window = memory.context_window()
         last_user_query = None
@@ -345,7 +265,7 @@ async def chat(req: ChatRequest):
                 last_user_query = turn.content
                 break
         
-        if last_user_query and len(req.message.split()) <= 4:
+        if last_user_query and len(req.message.split()) <= 7:
             expanded_query = f"{last_user_query} {req.message}"
             expanded_result = retriever.retrieve(expanded_query)
             ex_score = expanded_result.get("top_score")
@@ -455,27 +375,6 @@ async def chat_stream(req: ChatRequest):
             yield f'data: {json.dumps({"done": True, "response_type": "answer", "mode": MODE, "source": None, "memory_used": False, "memory_turn_refs": []})}\n\n'
         return StreamingResponse(intro_stream(), media_type="text/event-stream")
 
-    if _is_conversational_meta(req.message):
-        _meta_text = _build_profile_response(profile, memory)
-        async def meta_stream():
-            words = _meta_text.split(" ")
-            for i, word in enumerate(words):
-                chunk = word + (" " if i < len(words) - 1 else "")
-                yield f'data: {json.dumps({"chunk": chunk})}\n\n'
-                await asyncio.sleep(0.03)
-            yield f'data: {json.dumps({"done": True, "response_type": "answer", "mode": MODE, "source": None, "memory_used": False, "memory_turn_refs": []})}\n\n'
-        return StreamingResponse(meta_stream(), media_type="text/event-stream")
-
-    if _is_capability_query(req.message):
-        async def capability_stream():
-            words = _CAPABILITY_RESPONSE.split(" ")
-            for i, word in enumerate(words):
-                chunk = word + (" " if i < len(words) - 1 else "")
-                yield f'data: {json.dumps({"chunk": chunk})}\n\n'
-                await asyncio.sleep(0.03)
-            yield f'data: {json.dumps({"done": True, "response_type": "answer", "mode": MODE, "source": None, "memory_used": False, "memory_turn_refs": []})}\n\n'
-        return StreamingResponse(capability_stream(), media_type="text/event-stream")
-
     # Pre-retrieval domain guard
     _pre_action = check_domain_rules(req.message)
     if _pre_action == "vague":
@@ -517,14 +416,23 @@ async def chat_stream(req: ChatRequest):
     retrieval_result = retriever.retrieve(req.message)
     top_score = retrieval_result.get("top_score")
 
+    # Lower threshold for sessions with active user profile so that
+    # low-scoring conversational queries still reach the LLM which can
+    # answer from User context rather than FAQ chunks.
+    effective_domain_miss_threshold = 0.45
+    effective_clarification_threshold = 0.65
+    if not profile.is_empty():
+        effective_domain_miss_threshold = 0.25
+        effective_clarification_threshold = 0.30
+
     # Step 2: Routing logic
     response_type: ResponseType = "answer"
     answer = ""
     
-    if top_score is None or top_score < 0.45:
+    if top_score is None or top_score < effective_domain_miss_threshold:
         response_type = "domain_miss"
         answer = DOMAIN_MISS_RESPONSE
-    elif top_score < 0.65:
+    elif top_score < effective_clarification_threshold:
         context_window = memory.context_window()
         last_user_query = None
         for turn in reversed(context_window):
@@ -532,7 +440,7 @@ async def chat_stream(req: ChatRequest):
                 last_user_query = turn.content
                 break
         
-        if last_user_query and len(req.message.split()) <= 4:
+        if last_user_query and len(req.message.split()) <= 7:
             expanded_query = f"{last_user_query} {req.message}"
             expanded_result = retriever.retrieve(expanded_query)
             ex_score = expanded_result.get("top_score")

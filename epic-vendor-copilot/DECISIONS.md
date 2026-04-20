@@ -101,35 +101,36 @@ Added try/except around all LLM API calls in responder.py. On any error
 falls back to template mode and returns a deterministic answer. The user
 never sees a broken state.
 
-## Conversational Intelligence Layer (Post-Review)
+## Conversational Intelligence Layer (Post-Review v2)
 
-Three classes of queries now bypass FAISS retrieval entirely and are 
-resolved directly from session state:
+**Design revision**: The initial post-review implementation added hardcoded 
+regex handlers (_is_conversational_meta, _is_capability_query) that 
+short-circuited FAISS for conversational and capability queries. This was 
+identified as over-engineered — each new failure mode required another regex 
+patch, making the system a rule engine with an LLM bolted on rather than an 
+LLM with minimal necessary guardrails.
 
-**Conversational meta-queries** (`_is_conversational_meta`): Questions 
-about the user's own profile — name, role, organization, conversation 
-history. These are answered directly from UserProfile and ConversationMemory 
-without touching the retriever. Previously, these were mis-routed to the 
-domain guard and blocked as off-domain.
+**Revised approach**: Hardcoded conversational handlers were removed. The 
+LLM now handles conversational meta-queries (name, role, profile questions) 
+and capability questions directly via an enriched three-priority system prompt 
+that explicitly describes what the agent can help with and instructs it to 
+answer profile questions from the injected User context block.
 
-**Capability queries** (`_is_capability_query`): Questions about what the 
-assistant can help with. Answered with a hardcoded capability menu derived 
-from the 11 FAQ sections. Prevents the system from returning a null response 
-when users ask about its own scope.
+**What remains as hard rules** (zero-tolerance requirements only):
+- HIPAA/PHI/boundary keyword blocking — legal boundary, no LLM discretion
+- Vague single-word query detection — input validation
+- Hard OOD patterns (weather, stock price) — categorical non-vendor topics
+- Empty/invalid input rejection — input validation
+- Greeting/intro short-circuit — avoids wasting retrieval on pure introductions
 
-**Domain boundary fix**: The "boundary" action from check_domain_rules() 
-now correctly returns a domain_miss response in main.py. Previously, 
-"boundary" was not handled and fell through to FAISS, allowing clinical 
-queries like "I need treatment information for my patient" to reach 
-retrieval instead of being hard-blocked.
+**Threshold adaptation**: When a session has an active UserProfile, the 
+domain-miss threshold is lowered from 0.45 to 0.30. Conversational queries 
+like "what's my name?" score low against the FAQ corpus but should still 
+reach the LLM, which can answer from the User context block rather than 
+FAQ chunks.
 
-**System prompt hierarchy**: The LLM system prompt was restructured from 
-a single "answer only from FAQ" directive into a three-tier priority system: 
-(1) conversational/profile questions from session context, (2) FAQ answers 
-from retrieved context, (3) honest fallback with redirect. This prevents 
-the model from over-refusing on partial-match queries.
-
-**Answer truncation fix**: FAQ answer text passed to the LLM was truncated 
-at 200 characters, cutting off actionable content (e.g. password reset 
-instructions). Increased to 500 characters.
+**Query expansion**: Word limit raised from 4 to 7. Natural follow-up 
+questions in English ("what about the Hyperspace Simulator specifically?") 
+are typically 5-7 words. The previous 4-word guard was too restrictive and 
+caused legitimate follow-ups to get clarification responses.
 

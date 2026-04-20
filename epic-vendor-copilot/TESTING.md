@@ -4,7 +4,7 @@ The test suite is structured in two layers: **pytest unit/integration tests** fo
 
 **Current result: 61 passed, 0 failed.**
 
-(Note: The post-review spec referenced a target of 74 tests, but the conversational-intelligence-layer changes were delivered without expanding the test suite per the "no new test files" directive.)
+(Note: The post-review spec referenced a target of 74 tests, but the conversational-intelligence-layer changes were delivered without expanding the test suite per the "no new test files" directive. A later revision removed the hardcoded `_is_conversational_meta` / `_is_capability_query` handlers in favor of LLM-driven handling via an enriched system prompt; this removal did not change the test count because those handlers had no dedicated tests.)
 
 ---
 
